@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gerätefuhrpark – Pathologisches Institut</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ===== Login ===== -->
+<div id="login-screen" class="login-screen hidden">
+  <div class="login-card">
+    <div class="login-logo">🔬</div>
+    <h1>Gerätefuhrpark</h1>
+    <p class="login-sub">Pathologisches Institut – Geräteverwaltung</p>
+    <form id="login-form">
+      <label for="login-name">Ihr Name</label>
+      <input type="text" id="login-name" required placeholder="z. B. Dr. Anna Muster" autocomplete="name">
+      <label>Rolle</label>
+      <div class="role-select">
+        <label class="role-option">
+          <input type="radio" name="role" value="mitarbeiter" checked>
+          <span><strong>Mitarbeiter/in</strong><br><small>Status ändern, kommentieren</small></span>
+        </label>
+        <label class="role-option">
+          <input type="radio" name="role" value="admin">
+          <span><strong>Admin</strong><br><small>Geräte anlegen, bearbeiten, löschen</small></span>
+        </label>
+      </div>
+      <button type="submit" class="btn btn-primary btn-block">Anmelden</button>
+    </form>
+  </div>
+</div>
+
+<!-- ===== App ===== -->
+<div id="app" class="hidden">
+  <header class="app-header">
+    <div class="header-title">
+      <span class="header-logo">🔬</span>
+      <div>
+        <h1>Gerätefuhrpark</h1>
+        <span class="header-sub">Pathologisches Institut</span>
+      </div>
+    </div>
+    <nav class="tabs">
+      <button class="tab active" data-view="uebersicht">Übersicht</button>
+      <button class="tab" data-view="statistik">Statistik</button>
+    </nav>
+    <div class="header-right">
+      <div class="notif-wrap">
+        <button id="notif-btn" class="notif-btn" title="Benachrichtigungen">🔔<span id="notif-badge" class="notif-badge hidden"></span></button>
+        <div id="notif-panel" class="notif-panel hidden"></div>
+      </div>
+      <div class="user-info">
+        <span id="user-name"></span>
+        <span id="user-role" class="role-chip"></span>
+      </div>
+      <button id="logout-btn" class="btn btn-ghost" title="Abmelden">Abmelden</button>
+    </div>
+  </header>
+
+  <!-- ===== Ansicht: Übersicht ===== -->
+  <main id="view-uebersicht" class="view">
+    <section class="tiles" id="dashboard-tiles"></section>
+
+    <section class="toolbar">
+      <div class="filters">
+        <input type="search" id="filter-search" placeholder="Suche: Name, Seriennr., Inventarnr. …">
+        <select id="filter-standort"><option value="">Alle Standorte</option></select>
+        <select id="filter-abteilung"><option value="">Alle Abteilungen</option></select>
+        <select id="filter-status">
+          <option value="">Alle Status</option>
+          <option value="ok">Funktionsfähig</option>
+          <option value="wartung">Wartung fällig / bald fällig</option>
+          <option value="defekt">Defekt</option>
+          <option value="ausser_betrieb">Außer Betrieb</option>
+        </select>
+        <select id="filter-wartung">
+          <option value="">Wartung: alle</option>
+          <option value="faellig30">fällig in ≤ 30 Tagen</option>
+          <option value="ueberfaellig">überfällig</option>
+        </select>
+        <button id="filter-reset" class="btn btn-ghost">Zurücksetzen</button>
+      </div>
+      <button id="btn-new-device" class="btn btn-primary admin-only">+ Neues Gerät</button>
+    </section>
+
+    <section class="table-wrap">
+      <table class="device-table" id="device-table">
+        <thead>
+          <tr>
+            <th data-sort="status" class="sortable">Status</th>
+            <th data-sort="name" class="sortable">Gerät</th>
+            <th data-sort="category" class="sortable">Typ</th>
+            <th data-sort="location" class="sortable">Standort</th>
+            <th data-sort="department" class="sortable">Abteilung</th>
+            <th data-sort="manufacturer" class="sortable">Hersteller</th>
+            <th data-sort="nextMaint" class="sortable">Nächste Wartung</th>
+            <th data-sort="defectDays" class="sortable">Ausfall</th>
+            <th>Distributor</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="device-tbody"></tbody>
+      </table>
+      <p id="empty-hint" class="empty-hint hidden">Keine Geräte gefunden.</p>
+    </section>
+  </main>
+
+  <!-- ===== Ansicht: Statistik ===== -->
+  <main id="view-statistik" class="view hidden">
+    <section class="toolbar">
+      <div class="filters">
+        <select id="stat-zeitraum">
+          <option value="6">Letzte 6 Monate</option>
+          <option value="12" selected>Letzte 12 Monate</option>
+          <option value="24">Letzte 24 Monate</option>
+          <option value="0">Gesamter Zeitraum</option>
+        </select>
+        <select id="stat-standort"><option value="">Alle Standorte</option></select>
+        <select id="stat-abteilung"><option value="">Alle Abteilungen</option></select>
+        <select id="stat-hersteller"><option value="">Alle Hersteller</option></select>
+      </div>
+      <button class="btn btn-ghost" onclick="window.print()">🖨 Als PDF drucken</button>
+    </section>
+
+    <section class="tiles" id="stat-tiles"></section>
+
+    <section class="stat-block">
+      <div class="stat-block-head">
+        <h2>Defekte pro Monat</h2>
+      </div>
+      <div id="chart-monat" class="chart"></div>
+    </section>
+
+    <section class="stat-block">
+      <div class="stat-block-head">
+        <h2>Ausfallstatistik pro Hersteller</h2>
+        <button class="btn btn-ghost btn-sm" id="csv-hersteller">CSV exportieren</button>
+      </div>
+      <p class="stat-note">Normalisiert auf Gerätebestand und Betriebsjahre, damit Hersteller mit vielen oder alten Geräten nicht unfair abschneiden.</p>
+      <div class="table-wrap"><table class="stat-table" id="table-hersteller"></table></div>
+    </section>
+
+    <section class="stat-block">
+      <div class="stat-block-head">
+        <h2>Top-Ausfallgeräte</h2>
+        <button class="btn btn-ghost btn-sm" id="csv-geraete">CSV exportieren</button>
+      </div>
+      <div class="table-wrap"><table class="stat-table" id="table-geraete"></table></div>
+    </section>
+
+    <section class="stat-block">
+      <div class="stat-block-head">
+        <h2>Vergleich nach Gerätetyp</h2>
+        <button class="btn btn-ghost btn-sm" id="csv-typen">CSV exportieren</button>
+      </div>
+      <p class="stat-note">Vergleich der Hersteller innerhalb derselben Gerätekategorie.</p>
+      <div class="table-wrap"><table class="stat-table" id="table-typen"></table></div>
+    </section>
+
+    <section class="stat-block">
+      <div class="stat-block-head">
+        <h2>Reparaturzeit pro Distributor</h2>
+        <button class="btn btn-ghost btn-sm" id="csv-distributor">CSV exportieren</button>
+      </div>
+      <p class="stat-note">Durchschnittliche Dauer von Defektmeldung bis „wieder funktionsfähig" – zeigt, welcher Servicepartner schnell reagiert.</p>
+      <div class="table-wrap"><table class="stat-table" id="table-distributor"></table></div>
+    </section>
+  </main>
+</div>
+
+<!-- ===== Modal: Gerät anlegen/bearbeiten ===== -->
+<div id="modal-form" class="modal-backdrop hidden">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="form-title">Neues Gerät</h2>
+      <button class="modal-close" data-close="modal-form">✕</button>
+    </div>
+    <form id="device-form" class="modal-body">
+      <input type="hidden" id="f-id">
+      <div class="form-grid">
+        <label>Gerätename *<input type="text" id="f-name" required></label>
+        <label>Gerätetyp / Kategorie *<input type="text" id="f-category" list="dl-category" required></label>
+        <label>Hersteller *<input type="text" id="f-manufacturer" list="dl-manufacturer" required></label>
+        <label>Modell<input type="text" id="f-model"></label>
+        <label>Seriennummer<input type="text" id="f-serial"></label>
+        <label>Interne Inventarnummer<input type="text" id="f-inventory"></label>
+        <label>Standort *<input type="text" id="f-location" list="dl-location" required></label>
+        <label>Abteilung *<input type="text" id="f-department" list="dl-department" required></label>
+        <label>Distributor / Lieferant<input type="text" id="f-distributor" list="dl-distributor"></label>
+        <label>Ansprechpartner (Service)<input type="text" id="f-dist-contact"></label>
+        <label>Telefon (Service-Hotline)<input type="tel" id="f-dist-phone"></label>
+        <label>E-Mail (Service)<input type="email" id="f-dist-email"></label>
+        <label>Anschaffungsdatum<input type="date" id="f-purchase"></label>
+        <label>Garantieende<input type="date" id="f-warranty"></label>
+        <label>Wartungsintervall (Monate)<input type="number" id="f-interval" min="1" max="60" placeholder="z. B. 12"></label>
+        <label>Letzte Wartung<input type="date" id="f-lastmaint"></label>
+      </div>
+      <datalist id="dl-category"></datalist>
+      <datalist id="dl-manufacturer"></datalist>
+      <datalist id="dl-location"></datalist>
+      <datalist id="dl-department"></datalist>
+      <datalist id="dl-distributor"></datalist>
+      <div class="modal-foot">
+        <button type="button" class="btn btn-ghost" data-close="modal-form">Abbrechen</button>
+        <button type="submit" class="btn btn-primary">Speichern</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ===== Modal: Gerätedetails ===== -->
+<div id="modal-detail" class="modal-backdrop hidden">
+  <div class="modal modal-lg">
+    <div class="modal-head">
+      <h2 id="detail-title"></h2>
+      <button class="modal-close" data-close="modal-detail">✕</button>
+    </div>
+    <div class="modal-body" id="detail-body"></div>
+  </div>
+</div>
+
+<script src="js/data.js"></script>
+<script src="js/stats.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
