@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 250 48" role="img" aria-label="Avidia Pharma">
+  <!-- Platzhalter-Logo: durch die Originaldatei von avidiapharma.com ersetzbar (gleicher Dateiname) -->
+  <rect x="2" y="6" width="36" height="36" rx="11" fill="#0E7490"/>
+  <path d="M20 15v18M11.5 24h17" stroke="#ffffff" stroke-width="4" stroke-linecap="round"/>
+  <text x="48" y="31" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="21" font-weight="700" letter-spacing="1" fill="#134E5E">AVIDIA</text>
+  <text x="129" y="31" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="21" font-weight="300" letter-spacing="3" fill="#0E7490">PHARMA</text>
+</svg>

@@ -1,4 +1,9 @@
 <!DOCTYPE html>
+<!--
+  Gerätefuhrpark – Pathologisches Institut
+  © Dietz-Engineering · Alle Rechte vorbehalten
+  Designed by Dietz-Engineering · Initiiert von Christoph Lüttgens
+-->
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -11,7 +16,7 @@
 <!-- ===== Login ===== -->
 <div id="login-screen" class="login-screen hidden">
   <div class="login-card">
-    <div class="login-logo">🔬</div>
+    <img src="assets/logo.svg" alt="Avidia Pharma" class="login-logo-img">
     <h1>Gerätefuhrpark</h1>
     <p class="login-sub">Pathologisches Institut – Geräteverwaltung</p>
     <form id="login-form">
@@ -30,6 +35,8 @@
       </div>
       <button type="submit" class="btn btn-primary btn-block">Anmelden</button>
     </form>
+    <p class="login-copyright">© <span class="copyright-jahr"></span> Dietz-Engineering · Alle Rechte vorbehalten<br>
+    Designed by Dietz-Engineering · Initiiert von Christoph Lüttgens</p>
   </div>
 </div>
 
@@ -37,7 +44,7 @@
 <div id="app" class="hidden">
   <header class="app-header">
     <div class="header-title">
-      <span class="header-logo">🔬</span>
+      <img src="assets/logo-mark.svg" alt="Avidia Pharma" class="header-logo">
       <div>
         <h1>Gerätefuhrpark</h1>
         <span class="header-sub">Pathologisches Institut</span>
@@ -180,6 +187,12 @@
       <div class="table-wrap"><table class="stat-table" id="table-distributor"></table></div>
     </section>
   </main>
+
+  <footer class="app-footer">
+    <img src="assets/logo.svg" alt="Avidia Pharma" class="footer-logo">
+    <p>© <span class="copyright-jahr"></span> Dietz-Engineering · Alle Rechte vorbehalten ·
+    Designed by Dietz-Engineering · Initiiert von Christoph Lüttgens</p>
+  </footer>
 </div>
 
 <!-- ===== Modal: Gerät anlegen/bearbeiten ===== -->

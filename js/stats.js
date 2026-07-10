@@ -3,6 +3,9 @@
  * Alle Auswertungen arbeiten auf Defekt-Ereignissen (defektEreignisse)
  * und werden über die Statistik-Filter (Zeitraum, Standort, Abteilung,
  * Hersteller) eingegrenzt.
+ *
+ * © Dietz-Engineering · Alle Rechte vorbehalten
+ * Designed by Dietz-Engineering · Initiiert von Christoph Lüttgens
  * ===================================================================== */
 
 /** Betriebsjahre eines Geräts seit Anschaffung (min. 0.1, damit nichts durch 0 geteilt wird). */

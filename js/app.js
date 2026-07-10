@@ -2,6 +2,9 @@
  * Gerätefuhrpark – Hauptanwendung
  * Login & Rollen, Übersichtsliste, Detailansicht mit Verlauf/Chat,
  * Benachrichtigungen, Statistik-Anbindung.
+ *
+ * © Dietz-Engineering · Alle Rechte vorbehalten
+ * Designed by Dietz-Engineering · Initiiert von Christoph Lüttgens
  * ===================================================================== */
 
 let daten = ladeDaten();
@@ -646,6 +649,9 @@ function initEvents() {
   }));
 
   initCsvExporte();
+
+  // Copyright-Jahr im Footer und auf der Login-Karte
+  $$('.copyright-jahr').forEach((el) => { el.textContent = new Date().getFullYear(); });
 
   // Ausfalldauer & Benachrichtigungen laufend aktualisieren (1× pro Minute)
   setInterval(() => { if (nutzer) renderAlles(false); }, 60000);

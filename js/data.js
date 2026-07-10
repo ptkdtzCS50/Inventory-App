@@ -3,6 +3,9 @@
  * Prototyp: Speicherung im localStorage des Browsers.
  * Für den Team-Einsatz über mehrere Rechner wird ein Backend benötigt
  * (siehe README) – die Datenstruktur hier ist dafür bereits vorbereitet.
+ *
+ * © Dietz-Engineering · Alle Rechte vorbehalten
+ * Designed by Dietz-Engineering · Initiiert von Christoph Lüttgens
  * ===================================================================== */
 
 const STORAGE_KEY = 'geraetefuhrpark_v1';

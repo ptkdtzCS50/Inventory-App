@@ -103,9 +103,21 @@ austauschen lassen.
 ## Dateistruktur
 
 ```
-index.html      – App-Gerüst (Login, Übersicht, Statistik, Modals)
-css/style.css   – Layout, Ampelfarben, Responsive- und Druck-Styles
-js/data.js      – Datenmodell, Speicherung, Status-/Wartungslogik, Demo-Daten
-js/stats.js     – Auswertungen (Punkt 7), SVG-Diagramm, CSV-Export
-js/app.js       – Oberfläche: Login, Tabelle, Filter, Detail/Chat, Statistik
+index.html          – App-Gerüst (Login, Übersicht, Statistik, Modals, Footer)
+css/style.css       – Layout, Ampelfarben, Responsive- und Druck-Styles
+js/data.js          – Datenmodell, Speicherung, Status-/Wartungslogik, Demo-Daten
+js/stats.js         – Auswertungen (Punkt 7), SVG-Diagramm, CSV-Export
+js/app.js           – Oberfläche: Login, Tabelle, Filter, Detail/Chat, Statistik
+assets/logo.svg     – Firmenlogo (Wortmarke), austauschbar gegen Originaldatei
+assets/logo-mark.svg – Bildmarke für Header, austauschbar gegen Originaldatei
 ```
+
+Die beiden Logo-Dateien sind Platzhalter im Stil von avidiapharma.com – zum
+Einsetzen des Original-Logos einfach die Dateien unter `assets/` durch die
+echten ersetzen (gleiche Dateinamen), es sind keine Code-Änderungen nötig.
+
+## Copyright
+
+© Dietz-Engineering · Alle Rechte vorbehalten
+
+Designed by **Dietz-Engineering** · Initiiert von **Christoph Lüttgens**

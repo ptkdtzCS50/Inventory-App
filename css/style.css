@@ -1,11 +1,14 @@
-/* ===== Grundlagen ===== */
+/* ===== Grundlagen =====
+   © Dietz-Engineering · Designed by Dietz-Engineering · Initiiert von Christoph Lüttgens
+   Farbwelt: klinisch clean – Weiß, viel Ruhe, medizinisches Teal als Akzent */
 :root {
   --green: #16a34a;  --green-bg: #dcfce7;
   --yellow: #d97706; --yellow-bg: #fef3c7;
   --red: #dc2626;    --red-bg: #fee2e2;
   --grey: #6b7280;   --grey-bg: #e5e7eb;
-  --blue: #1d4ed8;   --blue-dark: #1e3a8a;
-  --bg: #f3f4f6; --card: #ffffff; --border: #e5e7eb;
+  --blue: #0e7490;   --blue-dark: #155e75;   /* Akzent: medizinisches Teal */
+  --accent-bg: #ecfeff; --accent-border: #a5f3fc;
+  --bg: #f8fafc; --card: #ffffff; --border: #e5e7eb;
   --text: #111827; --muted: #6b7280;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -33,14 +36,16 @@ small { color: var(--muted); }
 
 /* ===== Login ===== */
 .login-screen {
-  position: fixed; inset: 0; background: linear-gradient(160deg, #1e3a8a, #1d4ed8);
+  position: fixed; inset: 0; background: linear-gradient(180deg, #ffffff, #f0fdfa);
   display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 100;
 }
 .login-card {
-  background: var(--card); border-radius: 16px; padding: 32px; width: 100%; max-width: 420px;
-  box-shadow: 0 20px 60px rgba(0,0,0,.3); text-align: center;
+  background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+  padding: 32px; width: 100%; max-width: 420px;
+  box-shadow: 0 12px 40px rgba(14,116,144,.08); text-align: center;
 }
-.login-logo { font-size: 42px; }
+.login-logo-img { height: 42px; width: auto; margin-bottom: 12px; }
+.login-copyright { margin-top: 22px; font-size: 11px; color: var(--muted); line-height: 1.6; }
 .login-sub { color: var(--muted); margin: 4px 0 20px; }
 .login-card form { text-align: left; }
 .login-card label { display: block; font-weight: 600; margin: 14px 0 4px; font-size: 14px; }
@@ -52,7 +57,7 @@ small { color: var(--muted); }
   display: flex; gap: 8px; align-items: flex-start; border: 1px solid var(--border);
   border-radius: 10px; padding: 10px; cursor: pointer; font-weight: 400 !important; margin: 0 !important;
 }
-.role-option:has(input:checked) { border-color: var(--blue); background: #eff6ff; }
+.role-option:has(input:checked) { border-color: var(--blue); background: var(--accent-bg); }
 
 /* ===== Header ===== */
 .app-header {
@@ -61,14 +66,14 @@ small { color: var(--muted); }
   padding: 10px 20px; position: sticky; top: 0; z-index: 20;
 }
 .header-title { display: flex; align-items: center; gap: 10px; }
-.header-logo { font-size: 28px; }
+.header-logo { height: 34px; width: 34px; }
 .header-sub { font-size: 12px; color: var(--muted); }
 .tabs { display: flex; gap: 4px; margin-left: auto; }
 .tab {
   border: none; background: transparent; padding: 8px 16px; border-radius: 8px;
   font-size: 15px; cursor: pointer; color: var(--muted);
 }
-.tab.active { background: #eff6ff; color: var(--blue); font-weight: 600; }
+.tab.active { background: var(--accent-bg); color: var(--blue-dark); font-weight: 600; }
 .header-right { display: flex; align-items: center; gap: 12px; margin-left: auto; }
 .user-info { display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 14px; }
 .role-chip {
@@ -189,7 +194,7 @@ tbody tr:last-child td { border-bottom: none; }
 .chat-form input { flex: 1; padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; }
 .log-list { display: flex; flex-direction: column; gap: 8px; max-height: 320px; overflow: auto; }
 .log-entry { border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px; background: #f9fafb; }
-.log-entry.log-system { background: #eff6ff; border-color: #bfdbfe; }
+.log-entry.log-system { background: var(--accent-bg); border-color: var(--accent-border); }
 .log-meta { font-size: 12px; color: var(--muted); margin-bottom: 2px; }
 .log-meta strong { color: var(--text); }
 
@@ -207,6 +212,15 @@ tbody tr:last-child td { border-bottom: none; }
 .chart-axis { font-size: 11px; fill: var(--muted); }
 .chart-value { font-size: 11px; fill: var(--text); font-weight: 600; }
 .rank-1 { color: var(--red); font-weight: 700; }
+
+/* ===== Footer ===== */
+.app-footer {
+  max-width: 1400px; margin: 24px auto 0; padding: 18px 20px 28px;
+  border-top: 1px solid var(--border);
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+}
+.footer-logo { height: 26px; width: auto; opacity: .9; }
+.app-footer p { font-size: 12px; color: var(--muted); }
 
 /* ===== Druck (PDF-Export der Statistik) ===== */
 @media print {
