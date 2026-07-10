@@ -246,6 +246,17 @@ Die beiden Logo-Dateien sind Platzhalter im Stil von avidiapharma.com – zum
 Einsetzen des Original-Logos einfach die Dateien unter `assets/` durch die
 echten ersetzen (gleiche Dateinamen), es sind keine Code-Änderungen nötig.
 
+## Claude-Integration (MCP)
+
+Im Ordner `mcp/` liegt ein fertiger **MCP-Server**, der die App mit der
+Claude-App verbindet: Anwender fügen die Server-URL in Claude unter
+*Einstellungen → Connectors* hinzu und arbeiten mit ihrem normalen
+Claude-Konto — ohne API-Tokens. Claude kann dann Geräte suchen und
+anlegen, fehlende Stammdaten finden, Wartungspläne vorbereiten, Defekte
+melden, Störungsmeldungen an Servicepartner entwerfen und Statistiken
+abfragen. Details und Deployment (Cloudflare Workers oder eigener
+Node-Server): siehe `mcp/README.md`.
+
 ## Lizenzierung
 
 Die App ist **proprietäre Software von Dietz-Engineering** (siehe

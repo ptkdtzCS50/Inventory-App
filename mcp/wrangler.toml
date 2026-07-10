@@ -1,0 +1,12 @@
+# Cloudflare-Worker-Konfiguration für den Gerätefuhrpark-MCP-Server
+# Deployment: npx wrangler deploy   (im Ordner mcp/)
+#
+# Geheimnisse danach setzen (nicht hier eintragen!):
+#   npx wrangler secret put SUPABASE_URL
+#   npx wrangler secret put SUPABASE_KEY        # Service-Role- oder anon-Key
+#   npx wrangler secret put MCP_SECRET          # optionaler Zugriffsschutz
+#   npx wrangler secret put MASTER_PASSWORT    # nur wenn Datenverschlüsselung aktiv
+
+name = "geraetefuhrpark-mcp"
+main = "server.mjs"
+compatibility_date = "2025-01-01"
