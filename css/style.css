@@ -27,6 +27,7 @@ small { color: var(--muted); }
   padding: 8px 14px; border-radius: 8px; font-size: 14px; cursor: pointer; white-space: nowrap;
 }
 .btn:hover { filter: brightness(0.96); }
+a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 4px; }
 .btn-primary { background: var(--blue); border-color: var(--blue); color: #fff; }
 .btn-ghost { background: transparent; }
 .btn-sm { padding: 4px 10px; font-size: 13px; }
@@ -141,7 +142,23 @@ tbody tr:last-child td { border-bottom: none; }
 .group-count { font-weight: 400; color: var(--muted); font-size: 12px; margin-left: 8px; }
 .group-alert { color: var(--red); font-weight: 600; }
 .group-warn { color: var(--yellow); font-weight: 600; }
-.group-row:hover td { background: #f1f5f9; }
+.group-row { cursor: pointer; user-select: none; }
+.group-row:hover td { background: #e8eef4; }
+.group-toggle { display: inline-block; width: 14px; color: var(--muted); font-size: 12px; }
+
+/* Eigene Felder (Verwaltungs-Modal) */
+.field-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 4px; border-bottom: 1px solid var(--border);
+}
+.field-row .field-label { flex: 1; font-weight: 600; }
+.field-row .field-type {
+  background: var(--accent-bg); color: var(--blue-dark);
+  font-size: 12px; padding: 2px 8px; border-radius: 999px;
+}
+.field-form { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+.field-form input { flex: 1; min-width: 180px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; }
+.field-form select { padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; background: var(--card); }
 .device-sub { font-size: 12px; color: var(--muted); }
 .empty-hint { padding: 24px; text-align: center; color: var(--muted); }
 

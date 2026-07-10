@@ -102,7 +102,7 @@ function defektEreignisse(g) {
 /* ---------- Speicher ---------- */
 
 /** Später ergänzte Felder in bereits gespeicherten Datenbeständen nachrüsten. */
-const NEUE_FELDER = ['room', 'team', 'salesName', 'salesPhone', 'salesEmail'];
+const NEUE_FELDER = ['room', 'team', 'salesName', 'salesPhone', 'salesEmail', 'networkAddress'];
 
 function migriereDaten(daten) {
   const seed = new Map(erzeugeDemoDaten().map((g) => [g.id, g]));
@@ -111,7 +111,11 @@ function migriereDaten(daten) {
     for (const feld of NEUE_FELDER) {
       if (g[feld] === undefined) g[feld] = s ? (s[feld] ?? '') : '';
     }
+    if (!g.custom) g.custom = {};
   }
+  // Eigene (vom Admin definierte) Felder
+  if (!daten.customFields) daten.customFields = [];
+  if (!daten.nextFieldId) daten.nextFieldId = 1;
 }
 
 function ladeDaten() {
@@ -123,7 +127,8 @@ function ladeDaten() {
       return daten;
     }
   } catch (e) { /* beschädigte Daten -> neu initialisieren */ }
-  const daten = { devices: erzeugeDemoDaten(), nextId: 100 };
+  const daten = { devices: erzeugeDemoDaten(), nextId: 100, customFields: [], nextFieldId: 1 };
+  migriereDaten(daten);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(daten));
   return daten;
 }
@@ -180,6 +185,7 @@ function erzeugeDemoDaten() {
     {
       id: 2, name: 'Färbeautomat H&E', category: 'Färbeautomat', manufacturer: 'Sakura',
       model: 'Tissue-Tek Prisma Plus', serial: 'SK-20419', inventoryNo: 'PATH-0002',
+      networkAddress: '10.12.4.21',
       location: 'Hauptstandort Klinikum', department: 'Histologie',
       room: 'EG 014', team: 'Team Färbung', ...sakura,
       purchaseDate: monateVor(30), warrantyEnd: monateVor(6),
@@ -191,6 +197,7 @@ function erzeugeDemoDaten() {
     {
       id: 3, name: 'Eindeckautomat 1', category: 'Eindeckautomat', manufacturer: 'Leica',
       model: 'CV5030', serial: 'LM-51102', inventoryNo: 'PATH-0003',
+      networkAddress: '10.12.4.22',
       location: 'Hauptstandort Klinikum', department: 'Histologie',
       room: 'EG 014', team: 'Team Färbung', ...leica,
       purchaseDate: monateVor(64), warrantyEnd: monateVor(40),
@@ -217,6 +224,7 @@ function erzeugeDemoDaten() {
     {
       id: 5, name: 'Immunfärbeautomat', category: 'Immunfärbeautomat', manufacturer: 'Roche (Ventana)',
       model: 'BenchMark ULTRA', serial: 'VN-77210', inventoryNo: 'PATH-0005',
+      networkAddress: '10.12.4.30',
       location: 'Hauptstandort Klinikum', department: 'Immunhistochemie',
       room: 'OG1 105', team: 'Team IHC', ...roche,
       purchaseDate: monateVor(44), warrantyEnd: monateVor(20),
@@ -272,6 +280,7 @@ function erzeugeDemoDaten() {
     {
       id: 10, name: 'Thermocycler PCR 1', category: 'Thermocycler', manufacturer: 'Thermo Fisher',
       model: 'ProFlex 96', serial: 'TF-91002', inventoryNo: 'PATH-0101',
+      networkAddress: '10.20.1.15',
       location: 'Standort Nord', department: 'Molekularpathologie',
       room: 'Nord 2.01', team: 'Team Molekularpathologie', ...thermo,
       purchaseDate: monateVor(26), warrantyEnd: monateVor(2),
@@ -281,6 +290,7 @@ function erzeugeDemoDaten() {
     {
       id: 11, name: 'Färbeautomat Sonderfärbung', category: 'Färbeautomat', manufacturer: 'Thermo Fisher',
       model: 'Gemini AS', serial: 'TF-33450', inventoryNo: 'PATH-0102',
+      networkAddress: '10.20.1.16',
       location: 'Standort Nord', department: 'Histologie',
       room: 'Nord 1.05', team: 'Team Färbung Nord', ...thermo,
       purchaseDate: monateVor(58), warrantyEnd: monateVor(34),

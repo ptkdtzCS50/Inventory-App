@@ -13,6 +13,7 @@ let nutzer = null;
 const zustand = {
   suche: '', standort: '', abteilung: '', status: '', wartung: '',
   gruppe: '', // Gruppierungsfeld der Übersichtsliste ('' = keine Gruppierung)
+  eingeklappt: new Set(), // eingeklappte Gruppenköpfe (Gruppierungswerte)
   sortKey: 'status', sortDir: 1,
   offenesGeraet: null, // Geräte-ID im Detail-Modal
 };
@@ -178,15 +179,17 @@ function renderTabelle() {
     }
     html = keys.map((key) => {
       const items = gruppen.get(key);
+      const zu = zustand.eingeklappt.has(key);
       const defekt = items.filter((g) => effektiverStatus(g) === 'defekt').length;
       const wartung = items.filter((g) => effektiverStatus(g) === 'wartung').length;
       const hinweise = [
         defekt ? `<span class="group-alert">${defekt} defekt</span>` : '',
         wartung ? `<span class="group-warn">${wartung}× Wartung fällig</span>` : '',
       ].filter(Boolean).join(' · ');
-      return `<tr class="group-row"><td colspan="10">${esc(key)}
+      return `<tr class="group-row" data-group="${esc(key)}" title="Klicken zum ${zu ? 'Ausklappen' : 'Einklappen'}">
+        <td colspan="10"><span class="group-toggle">${zu ? '▸' : '▾'}</span> ${esc(key)}
         <span class="group-count">${items.length} Gerät${items.length === 1 ? '' : 'e'}${hinweise ? ' · ' + hinweise : ''}</span></td></tr>`
-        + items.map(geraetZeile).join('');
+        + (zu ? '' : items.map(geraetZeile).join(''));
     }).join('');
   } else {
     html = liste.map(geraetZeile).join('');
@@ -196,6 +199,14 @@ function renderTabelle() {
   $$('#device-tbody tr[data-id]').forEach((tr) => {
     tr.querySelector('.btn-detail').addEventListener('click', () => oeffneDetail(Number(tr.dataset.id)));
   });
+
+  // Gruppenköpfe: Klick klappt die Gruppe ein/aus
+  $$('#device-tbody tr.group-row').forEach((tr) => tr.addEventListener('click', () => {
+    const key = tr.dataset.group;
+    if (zustand.eingeklappt.has(key)) zustand.eingeklappt.delete(key);
+    else zustand.eingeklappt.add(key);
+    renderTabelle();
+  }));
 
   // Sortier-Pfeile
   $$('#device-table th.sortable').forEach((th) => {
@@ -273,6 +284,33 @@ function systemEintrag(g, text) {
   g.log.push({ ts: Date.now(), author: 'System', type: 'system', text });
 }
 
+/**
+ * mailto-Link mit vorausgefüllter Störungsmeldung an den technischen Service.
+ * Öffnet das E-Mail-Programm – abschicken muss der Mensch (bewusst so:
+ * vollautomatischer Versand bräuchte ein Backend, siehe README).
+ */
+function serviceMailLink(g) {
+  const betreff = `Störungsmeldung: ${g.name}${g.model ? ' (' + g.model + ')' : ''}, SN ${g.serial || '–'}`;
+  const dt = defektTage(g);
+  const body = [
+    'Sehr geehrte Damen und Herren,',
+    '',
+    'wir melden eine Störung an folgendem Gerät:',
+    '',
+    `Gerät:          ${g.name} – ${g.manufacturer} ${g.model || ''}`,
+    `Seriennummer:   ${g.serial || '–'}`,
+    `Inventarnummer: ${g.inventoryNo || '–'}`,
+    `Standort:       ${g.location}${g.room ? ', Raum ' + g.room : ''}${g.department ? ' (' + g.department + ')' : ''}`,
+    `Defekt seit:    ${formatDatum(g.defectSince)}${dt !== null ? ' (' + dt + ' Tag' + (dt === 1 ? '' : 'e') + ')' : ''}`,
+    '',
+    'Bitte melden Sie sich zur Terminabstimmung.',
+    '',
+    'Mit freundlichen Grüßen',
+    nutzer ? nutzer.name : '',
+  ].join('\n');
+  return `mailto:${g.distEmail}?subject=${encodeURIComponent(betreff)}&body=${encodeURIComponent(body)}`;
+}
+
 function oeffneDetail(id) {
   zustand.offenesGeraet = id;
   renderDetail();
@@ -289,6 +327,7 @@ function renderDetail() {
   const aktionen = [];
   if (g.status !== 'defekt') aktionen.push('<button class="btn btn-danger btn-status" data-aktion="defekt">⚠ Defekt melden</button>');
   if (g.status === 'defekt') aktionen.push('<button class="btn btn-status" data-aktion="repariert">✔ Repariert / wieder funktionsfähig</button>');
+  if (g.status === 'defekt' && g.distEmail) aktionen.push(`<a class="btn btn-status" id="btn-service-mail" href="${serviceMailLink(g)}">✉ Service kontaktieren</a>`);
   aktionen.push('<button class="btn btn-status" data-aktion="wartung">🛠 Wartung durchgeführt</button>');
   if (g.status !== 'ausser_betrieb') aktionen.push('<button class="btn btn-status" data-aktion="ausser_betrieb">⏸ Außer Betrieb setzen</button>');
   else aktionen.push('<button class="btn btn-status" data-aktion="in_betrieb">▶ Wieder in Betrieb nehmen</button>');
@@ -315,8 +354,14 @@ function renderDetail() {
       <div><dt>Distributor</dt><dd>${esc(g.distributor || '–')}</dd></div>
       <div><dt>Service-Kontakt (Technik)</dt><dd>${g.distContact ? esc(g.distContact) + ' · ' : ''}${esc(g.distPhone || '–')}${g.distEmail ? ' · <a href="mailto:' + esc(g.distEmail) + '">' + esc(g.distEmail) + '</a>' : ''}</dd></div>
       <div><dt>Vertrieb / Außendienst</dt><dd>${g.salesName || g.salesPhone || g.salesEmail ? `${esc(g.salesName || '')}${g.salesPhone ? ' · ' + esc(g.salesPhone) : ''}${g.salesEmail ? ' · <a href="mailto:' + esc(g.salesEmail) + '">' + esc(g.salesEmail) + '</a>' : ''}` : '–'}</dd></div>
+      <div><dt>Netzwerkadresse</dt><dd>${g.networkAddress
+        ? esc(g.networkAddress) + (MONITORING_ENDPOINT
+          ? ' <button type="button" class="btn btn-sm" id="btn-netcheck">Online-Status abfragen</button>'
+          : ' <small>· Online-Abfrage vorbereitet (Monitoring-Dienst noch nicht angebunden)</small>')
+        : '–'}</dd></div>
       ${dt !== null ? `<div><dt>Ausfalldauer</dt><dd class="defect-days">defekt seit ${dt === 0 ? 'heute' : dt + ' Tag' + (dt === 1 ? '' : 'en')} (gemeldet ${formatDatum(g.defectSince)})</dd></div>` : ''}
       <div><dt>Bisherige Defekte</dt><dd>${defektEreignisse(g).length}</dd></div>
+      ${daten.customFields.map((f) => `<div><dt>${esc(f.label)}</dt><dd>${formatCustomWert(f, (g.custom || {})[f.id])}</dd></div>`).join('')}
     </dl>
     <div class="detail-actions">${aktionen.join('')}</div>
     <div class="detail-section">
@@ -344,8 +389,33 @@ function renderDetail() {
     renderAlles(false);
   });
 
-  $$('#detail-body .btn-status').forEach((btn) =>
-    btn.addEventListener('click', () => statusAktion(g, btn.dataset.aktion)));
+  $$('#detail-body .btn-status').forEach((btn) => {
+    if (btn.dataset.aktion) btn.addEventListener('click', () => statusAktion(g, btn.dataset.aktion));
+  });
+
+  // Störungs-E-Mail: Klick im Verlauf dokumentieren (mailto öffnet das Mailprogramm)
+  const mailBtn = $('#btn-service-mail');
+  if (mailBtn) mailBtn.addEventListener('click', () => {
+    systemEintrag(g, `Störungs-E-Mail an ${g.distEmail} vorbereitet (${nutzer.name}).`);
+    speichereDaten(daten);
+    setTimeout(renderDetail, 300);
+  });
+
+  // Online-Statusabfrage (nur aktiv, wenn ein Monitoring-Dienst konfiguriert ist)
+  const netBtn = $('#btn-netcheck');
+  if (netBtn) netBtn.addEventListener('click', async () => {
+    netBtn.disabled = true;
+    netBtn.textContent = 'Frage ab …';
+    try {
+      const s = await frageGeraeteStatusAb(g);
+      alert(s.erreichbar === null
+        ? 'Monitoring nicht konfiguriert.'
+        : `${g.name} ist derzeit ${s.erreichbar ? 'ERREICHBAR' : 'NICHT ERREICHBAR'} (geprüft: ${s.geprueft ? formatZeit(new Date(s.geprueft).getTime()) : 'jetzt'}).`);
+    } catch (e) {
+      alert('Abfrage fehlgeschlagen: ' + e.message);
+    }
+    renderDetail();
+  });
 }
 
 function statusAktion(g, aktion) {
@@ -409,6 +479,36 @@ function statusAktion(g, aktion) {
   renderAlles(false);
 }
 
+/* ===================== Eigene Felder (Admin) ===================== */
+
+const FELD_TYP_NAME = { text: 'Text', number: 'Zahl', date: 'Datum' };
+
+function renderFelderListe() {
+  const liste = daten.customFields;
+  $('#fields-list').innerHTML = liste.length
+    ? liste.map((f) => `
+      <div class="field-row" data-id="${esc(f.id)}">
+        <span class="field-label">${esc(f.label)}</span>
+        <span class="field-type">${FELD_TYP_NAME[f.type] || f.type}</span>
+        <button type="button" class="btn btn-sm btn-danger field-del">Entfernen</button>
+      </div>`).join('')
+    : '<p class="empty-hint">Noch keine eigenen Felder definiert.</p>';
+
+  $$('#fields-list .field-del').forEach((btn) => btn.addEventListener('click', () => {
+    const id = btn.closest('.field-row').dataset.id;
+    const f = daten.customFields.find((x) => x.id === id);
+    if (!confirm(`Feld „${f.label}“ entfernen?\nBereits eingetragene Werte bleiben gespeichert, werden aber nicht mehr angezeigt.`)) return;
+    daten.customFields = daten.customFields.filter((x) => x.id !== id);
+    speichereDaten(daten);
+    renderFelderListe();
+  }));
+}
+
+function formatCustomWert(feld, wert) {
+  if (!wert) return '–';
+  return feld.type === 'date' ? formatDatum(wert) : esc(wert);
+}
+
 /* ===================== Formular (Admin) ===================== */
 
 function oeffneFormular(g) {
@@ -435,6 +535,10 @@ function oeffneFormular(g) {
   $('#f-warranty').value = g?.warrantyEnd || '';
   $('#f-interval').value = g?.maintenanceInterval || '';
   $('#f-lastmaint').value = g?.lastMaintenance || '';
+  $('#f-network').value = g?.networkAddress || '';
+  // Eigene Felder dynamisch einfügen
+  $('#custom-fields-form').innerHTML = daten.customFields.map((f) => `
+    <label>${esc(f.label)}<input type="${f.type}" data-field="${esc(f.id)}" value="${esc((g?.custom || {})[f.id] || '')}"></label>`).join('');
   $('#modal-form').classList.remove('hidden');
 }
 
@@ -463,7 +567,12 @@ function speichereFormular(ev) {
     warrantyEnd: $('#f-warranty').value || null,
     maintenanceInterval: $('#f-interval').value ? Number($('#f-interval').value) : null,
     lastMaintenance: $('#f-lastmaint').value || null,
+    networkAddress: $('#f-network').value.trim(),
   };
+  // Eigene Felder: bestehende Werte übernehmen, sichtbare Eingaben aktualisieren
+  const custom = { ...(id ? (findeGeraet(id).custom || {}) : {}) };
+  $$('#custom-fields-form input').forEach((inp) => { custom[inp.dataset.field] = inp.value.trim(); });
+  felder.custom = custom;
   if (id) {
     const g = findeGeraet(id);
     Object.assign(g, felder);
@@ -611,9 +720,14 @@ function initEvents() {
   $('#filter-abteilung').addEventListener('change', (e) => { zustand.abteilung = e.target.value; renderTabelle(); });
   $('#filter-status').addEventListener('change', (e) => { zustand.status = e.target.value; renderTabelle(); });
   $('#filter-wartung').addEventListener('change', (e) => { zustand.wartung = e.target.value; renderTabelle(); });
-  $('#group-by').addEventListener('change', (e) => { zustand.gruppe = e.target.value; renderTabelle(); });
+  $('#group-by').addEventListener('change', (e) => {
+    zustand.gruppe = e.target.value;
+    zustand.eingeklappt.clear();
+    renderTabelle();
+  });
   $('#filter-reset').addEventListener('click', () => {
     Object.assign(zustand, { suche: '', standort: '', abteilung: '', status: '', wartung: '', gruppe: '' });
+    zustand.eingeklappt.clear();
     $('#filter-search').value = '';
     ['#filter-standort', '#filter-abteilung', '#filter-status', '#filter-wartung', '#group-by'].forEach((s) => { $(s).value = ''; });
     renderTabelle();
@@ -643,6 +757,19 @@ function initEvents() {
   // Modals
   $('#btn-new-device').addEventListener('click', () => oeffneFormular(null));
   $('#device-form').addEventListener('submit', speichereFormular);
+  $('#btn-fields').addEventListener('click', () => {
+    renderFelderListe();
+    $('#modal-fields').classList.remove('hidden');
+  });
+  $('#field-form').addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    const label = $('#nf-label').value.trim();
+    if (!label) return;
+    daten.customFields.push({ id: 'cf' + daten.nextFieldId++, label, type: $('#nf-type').value });
+    speichereDaten(daten);
+    $('#nf-label').value = '';
+    renderFelderListe();
+  });
   $$('[data-close]').forEach((btn) => btn.addEventListener('click', () => $('#' + btn.dataset.close).classList.add('hidden')));
   $$('.modal-backdrop').forEach((bd) => bd.addEventListener('mousedown', (e) => {
     if (e.target === bd) bd.classList.add('hidden');

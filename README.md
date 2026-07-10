@@ -46,8 +46,36 @@ defekt) als Schnellfilter.
 
 Zusätzlich lässt sich die Liste **gruppieren** – nach Standort, Abteilung,
 Raum, Team, Funktion/Gerätetyp, Hersteller, Distributor oder Status. Jede
-Gruppenüberschrift zeigt die Geräteanzahl und hebt hervor, wenn in der Gruppe
-Geräte defekt sind oder Wartungen anstehen.
+Gruppenüberschrift zeigt die Geräteanzahl, hebt hervor, wenn in der Gruppe
+Geräte defekt sind oder Wartungen anstehen, und lässt sich **per Klick
+ein- und ausklappen**.
+
+### Eigene Felder (Admin)
+Über „⚙ Eigene Felder" kann der Admin zusätzliche Stammdatenfelder
+definieren (Text, Zahl oder Datum) – z. B. „Softwareversion", „Letzte STK"
+oder „Kostenstelle". Sie erscheinen automatisch bei allen Geräten im
+Bearbeitungsformular und in der Detailansicht. Beim Entfernen eines Felds
+bleiben bereits eingetragene Werte gespeichert (werden nur ausgeblendet).
+
+### Störungsmeldung an den Service
+Bei defekten Geräten bietet die Detailansicht **„✉ Service kontaktieren"**:
+Ein Klick öffnet das E-Mail-Programm mit fertig ausgefüllter
+Störungsmeldung an die Service-Adresse des Distributors (Gerät, Modell,
+Serien- und Inventarnummer, Standort/Raum, Defektdatum und -dauer). Der
+Klick wird im Geräteverlauf dokumentiert. Ein *vollautomatischer* Versand
+ohne Klick ist bewusst nicht eingebaut – dafür wäre ein Backend nötig
+(siehe unten), und eine Störungsmeldung sollte vor dem Versand ohnehin kurz
+geprüft werden.
+
+### Online-Statusabfrage (vorbereitet)
+Pro Gerät kann eine **Netzwerkadresse (IP/Hostname)** hinterlegt werden.
+Die Abfrage „ist das Gerät gerade erreichbar?" ist in `js/monitoring.js`
+vorbereitet: Sobald im Institutsnetz ein kleiner Monitoring-Dienst läuft
+(API-Format ist in der Datei dokumentiert), muss dort nur
+`MONITORING_ENDPOINT` gesetzt werden – die Detailansicht zeigt dann einen
+„Online-Status abfragen"-Button. Direkt aus dem Browser heraus ist ein
+Ping auf Laborgeräte technisch nicht möglich (Same-Origin-Policy), daher
+führt an diesem kleinen Dienst kein Weg vorbei.
 
 ### 4. Verlauf & Kommentare pro Gerät
 Chronologischer Verlauf (neueste zuerst) mit Autor und Zeitstempel. Jede/r kann
@@ -106,6 +134,7 @@ austauschen lassen.
 index.html          – App-Gerüst (Login, Übersicht, Statistik, Modals, Footer)
 css/style.css       – Layout, Ampelfarben, Responsive- und Druck-Styles
 js/data.js          – Datenmodell, Speicherung, Status-/Wartungslogik, Demo-Daten
+js/monitoring.js    – vorbereitete Schnittstelle zur Online-Statusabfrage
 js/stats.js         – Auswertungen (Punkt 7), SVG-Diagramm, CSV-Export
 js/app.js           – Oberfläche: Login, Tabelle, Filter, Detail/Chat, Statistik
 assets/logo.svg     – Firmenlogo (Wortmarke), austauschbar gegen Originaldatei

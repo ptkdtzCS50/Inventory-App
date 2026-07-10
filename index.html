@@ -101,6 +101,7 @@
         </select>
         <button id="filter-reset" class="btn btn-ghost">Zurücksetzen</button>
       </div>
+      <button id="btn-fields" class="btn admin-only" title="Eigene Felder verwalten">⚙ Eigene Felder</button>
       <button id="btn-new-device" class="btn btn-primary admin-only">+ Neues Gerät</button>
     </section>
 
@@ -226,6 +227,8 @@
         <label>Garantieende<input type="date" id="f-warranty"></label>
         <label>Wartungsintervall (Monate)<input type="number" id="f-interval" min="1" max="60" placeholder="z. B. 12"></label>
         <label>Letzte Wartung<input type="date" id="f-lastmaint"></label>
+        <label>Netzwerkadresse (IP/Host)<input type="text" id="f-network" placeholder="z. B. 10.12.4.21"></label>
+        <div id="custom-fields-form" style="display: contents;"></div>
       </div>
       <datalist id="dl-category"></datalist>
       <datalist id="dl-manufacturer"></datalist>
@@ -242,6 +245,30 @@
   </div>
 </div>
 
+<!-- ===== Modal: Eigene Felder verwalten (Admin) ===== -->
+<div id="modal-fields" class="modal-backdrop hidden">
+  <div class="modal">
+    <div class="modal-head">
+      <h2>Eigene Felder</h2>
+      <button class="modal-close" data-close="modal-fields">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="stat-note">Eigene Felder erscheinen bei allen Geräten im Bearbeitungsformular und in der
+      Detailansicht – z. B. „Softwareversion", „Letzte STK" oder „Kostenstelle".</p>
+      <div id="fields-list"></div>
+      <form id="field-form" class="field-form">
+        <input type="text" id="nf-label" placeholder="Feldname, z. B. „Softwareversion&#8220;" required maxlength="40">
+        <select id="nf-type">
+          <option value="text">Text</option>
+          <option value="number">Zahl</option>
+          <option value="date">Datum</option>
+        </select>
+        <button type="submit" class="btn btn-primary">Hinzufügen</button>
+      </form>
+    </div>
+  </div>
+</div>
+
 <!-- ===== Modal: Gerätedetails ===== -->
 <div id="modal-detail" class="modal-backdrop hidden">
   <div class="modal modal-lg">
@@ -254,6 +281,7 @@
 </div>
 
 <script src="js/data.js"></script>
+<script src="js/monitoring.js"></script>
 <script src="js/stats.js"></script>
 <script src="js/app.js"></script>
 </body>
