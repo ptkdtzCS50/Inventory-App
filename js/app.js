@@ -741,6 +741,23 @@ function renderStatistik() {
       <td class="num">${eur(s.kosten)}</td>
     </tr>`).join('') + '</tbody>';
 
+  // --- Ausfallquote nach Dimension (Standort/Abteilung/Team/Raum) ---
+  const DIM_NAMEN = { location: 'Standort', department: 'Abteilung', team: 'Team', room: 'Raum' };
+  const dim = $('#stat-dimension').value;
+  $('#dim-titel').textContent = DIM_NAMEN[dim];
+  const ds2 = statDimension(daten.devices, filter, dim);
+  $('#table-dimension').innerHTML = `
+    <thead><tr><th>${DIM_NAMEN[dim]}</th><th class="num">Geräte</th><th class="num">Defekte</th>
+    <th class="num">Defekte / Gerät</th><th class="num">Defekte / Betriebsjahr</th>
+    <th class="num">Ausfalltage</th><th class="num">Ø Ausfalldauer</th><th class="num">Reparaturkosten</th></tr></thead><tbody>` +
+    ds2.map((s, i) => `<tr>
+      <td class="${i === 0 && s.defekte > 0 ? 'rank-1' : ''}">${esc(s.name)}</td>
+      <td class="num">${s.geraete}</td><td class="num">${s.defekte}</td>
+      <td class="num">${f1(s.defekteProGeraet)}</td><td class="num">${f1(s.defekteProBetriebsjahr)}</td>
+      <td class="num">${s.ausfalltage}</td><td class="num">${f1(s.mittlereAusfalldauer)} Tage</td>
+      <td class="num">${eur(s.kosten)}</td>
+    </tr>`).join('') + '</tbody>';
+
   // --- Top-Ausfallgeräte ---
   const gs = statGeraete(daten.devices, filter);
   $('#table-geraete').innerHTML = `
@@ -789,6 +806,14 @@ function initCsvExporte() {
     exportiereCSV('top-ausfallgeraete.csv',
       ['Rang', 'Gerät', 'Modell', 'Hersteller', 'Standort', 'Abteilung', 'Defekte', 'Ausfalltage', 'Reparaturkosten (EUR)', 'Alter (Jahre)', 'Defekte pro Betriebsjahr'],
       gs.map((r, i) => [i + 1, r.geraet.name, r.geraet.model, r.geraet.manufacturer, r.geraet.location, r.geraet.department, r.defekte, r.ausfalltage, f1(r.kosten), f1(r.alterJahre), f1(r.defekteProBetriebsjahr)]));
+  });
+  $('#csv-dimension').addEventListener('click', () => {
+    const DIM_NAMEN = { location: 'Standort', department: 'Abteilung', team: 'Team', room: 'Raum' };
+    const dim = $('#stat-dimension').value;
+    const ds2 = statDimension(daten.devices, statFilter(), dim);
+    exportiereCSV(`ausfallquote-${DIM_NAMEN[dim].toLowerCase()}.csv`,
+      [DIM_NAMEN[dim], 'Geräte', 'Defekte', 'Defekte pro Gerät', 'Defekte pro Betriebsjahr', 'Ausfalltage', 'Mittlere Ausfalldauer (Tage)', 'Reparaturkosten (EUR)'],
+      ds2.map((s) => [s.name, s.geraete, s.defekte, f1(s.defekteProGeraet), f1(s.defekteProBetriebsjahr), s.ausfalltage, f1(s.mittlereAusfalldauer), f1(s.kosten)]));
   });
   $('#csv-typen').addEventListener('click', () => {
     const ts = statTypen(daten.devices, statFilter());
@@ -1022,7 +1047,7 @@ function initEvents() {
   }));
 
   // Filter Statistik
-  ['#stat-zeitraum', '#stat-standort', '#stat-abteilung', '#stat-hersteller']
+  ['#stat-zeitraum', '#stat-standort', '#stat-abteilung', '#stat-hersteller', '#stat-dimension']
     .forEach((s) => $(s).addEventListener('change', renderStatistik));
 
   // QR-Etiketten & Kalender

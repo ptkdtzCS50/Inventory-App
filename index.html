@@ -171,6 +171,25 @@
 
     <section class="stat-block">
       <div class="stat-block-head">
+        <h2>Ausfallquote nach <span id="dim-titel">Standort</span></h2>
+        <div class="stat-block-tools">
+          <select id="stat-dimension">
+            <option value="location">Standort</option>
+            <option value="department">Abteilung</option>
+            <option value="team">Team</option>
+            <option value="room">Raum</option>
+          </select>
+          <button class="btn btn-ghost btn-sm" id="csv-dimension">CSV exportieren</button>
+        </div>
+      </div>
+      <p class="stat-note">Auffällig hohe Quoten können auf Bedienungsprobleme oder Schulungsbedarf an einem
+      Standort hindeuten. Normalisiert auf Gerätebestand und Betriebsjahre – erst „Defekte pro Betriebsjahr"
+      macht Standorte unterschiedlicher Größe und mit unterschiedlich alten Geräten vergleichbar.</p>
+      <div class="table-wrap"><table class="stat-table" id="table-dimension"></table></div>
+    </section>
+
+    <section class="stat-block">
+      <div class="stat-block-head">
         <h2>Top-Ausfallgeräte</h2>
         <button class="btn btn-ghost btn-sm" id="csv-geraete">CSV exportieren</button>
       </div>

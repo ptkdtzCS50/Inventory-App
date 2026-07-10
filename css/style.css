@@ -222,6 +222,11 @@ tbody tr:last-child td { border-bottom: none; }
 /* ===== Statistik ===== */
 .stat-block { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; margin-bottom: 16px; }
 .stat-block-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+.stat-block-tools { display: flex; align-items: center; gap: 8px; }
+.stat-block-tools select {
+  padding: 6px 10px; border: 1px solid var(--border); border-radius: 8px;
+  font-size: 13px; background: var(--card);
+}
 .stat-note { font-size: 13px; color: var(--muted); margin-bottom: 10px; }
 .stat-table th, .stat-table td { padding: 8px 10px; }
 .stat-table td.num, .stat-table th.num { text-align: right; font-variant-numeric: tabular-nums; }

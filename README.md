@@ -144,6 +144,9 @@ die käme mit Supabase-Auth als Ausbauschritt.
   normalisiert auf Gerätebestand („Defekte pro Gerät") und Alter
   („Defekte pro Betriebsjahr"), damit Hersteller mit vielen oder alten Geräten
   nicht unfair abschneiden
+- **Ausfallquote nach Standort / Abteilung / Team / Raum** (umschaltbar) –
+  gleiche Normalisierung; auffällig hohe Quoten an einem Standort können auf
+  Bedienungsprobleme oder Schulungsbedarf hindeuten
 - **Top-Ausfallgeräte** – Rangliste der Einzelgeräte nach Defekthäufigkeit und
   Stillstandszeit
 - **Vergleich nach Gerätetyp** – Hersteller innerhalb derselben Kategorie

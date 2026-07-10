@@ -94,6 +94,39 @@ function statGeraete(devices, filter) {
     .sort((a, b) => b.defekte - a.defekte || b.ausfalltage - a.ausfalltage);
 }
 
+/**
+ * Ausfallstatistik nach beliebiger Dimension (Standort, Abteilung, Team, Raum).
+ * Gleiche Normalisierung wie die Hersteller-Statistik: Defekte pro Gerät und
+ * pro Betriebsjahr, damit große oder alte Standorte nicht unfair abschneiden.
+ */
+function statDimension(devices, filter, feld) {
+  const geraete = gefilterteGeraete(devices, filter);
+  const events = gefilterteEreignisse(devices, filter);
+  const map = new Map();
+  for (const g of geraete) {
+    const key = g[feld] || 'Ohne Angabe';
+    if (!map.has(key)) map.set(key, { name: key, geraete: 0, jahre: 0, defekte: 0, ausfalltage: 0, kosten: 0 });
+    const s = map.get(key);
+    s.geraete++;
+    s.jahre += betriebsjahre(g);
+  }
+  for (const e of events) {
+    const s = map.get(e.geraet[feld] || 'Ohne Angabe');
+    if (!s) continue;
+    s.defekte++;
+    s.ausfalltage += e.dauerTage;
+    s.kosten += e.kosten || 0;
+  }
+  return [...map.values()]
+    .map((s) => ({
+      ...s,
+      defekteProGeraet: s.defekte / s.geraete,
+      defekteProBetriebsjahr: s.defekte / s.jahre,
+      mittlereAusfalldauer: s.defekte ? s.ausfalltage / s.defekte : 0,
+    }))
+    .sort((a, b) => b.defekteProBetriebsjahr - a.defekteProBetriebsjahr);
+}
+
 /** Vergleich nach Gerätetyp: Kategorie × Hersteller. */
 function statTypen(devices, filter) {
   const geraete = gefilterteGeraete(devices, filter);
