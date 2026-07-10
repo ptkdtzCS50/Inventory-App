@@ -24,9 +24,11 @@ können als Admin angelegt werden; die Demo-Geräte lassen sich löschen.
 
 ### 1. Geräteverwaltung (Stammdaten)
 Pro Gerät: Name, Typ/Kategorie, Hersteller, Modell, Seriennummer, interne
-Inventarnummer, Standort, Abteilung, Distributor mit Ansprechpartner/Telefon/
-E-Mail, Anschaffungsdatum, Garantieende, Wartungsintervall und letzte Wartung.
-Die **nächste Wartungsfälligkeit wird automatisch berechnet**.
+Inventarnummer, Standort, Abteilung, **Raum**, **zuständiges Team**,
+Distributor mit **zwei getrennten Kontakten** – technischer Service
+(Hotline für Defekte) und Vertrieb/Außendienst (für Angebote und
+Beschaffung) – sowie Anschaffungsdatum, Garantieende, Wartungsintervall und
+letzte Wartung. Die **nächste Wartungsfälligkeit wird automatisch berechnet**.
 
 ### 2. Statusverwaltung (Ampel)
 - 🟢 **Funktionsfähig**
@@ -38,9 +40,14 @@ Die **nächste Wartungsfälligkeit wird automatisch berechnet**.
 ### 3. Übersichtsliste
 Tabellarische Liste aller Geräte mit Status-Ampel, sortierbar per Klick auf die
 Spaltenköpfe und filterbar nach **Standort, Abteilung, Status und
-Wartungsfälligkeit**; Suchfeld für Name, Seriennummer und Inventarnummer;
-Dashboard-Kacheln (gesamt / funktionsfähig / Wartung fällig / defekt) als
-Schnellfilter.
+Wartungsfälligkeit**; Suchfeld für Name, Seriennummer, Inventarnummer, Raum
+und Team; Dashboard-Kacheln (gesamt / funktionsfähig / Wartung fällig /
+defekt) als Schnellfilter.
+
+Zusätzlich lässt sich die Liste **gruppieren** – nach Standort, Abteilung,
+Raum, Team, Funktion/Gerätetyp, Hersteller, Distributor oder Status. Jede
+Gruppenüberschrift zeigt die Geräteanzahl und hebt hervor, wenn in der Gruppe
+Geräte defekt sind oder Wartungen anstehen.
 
 ### 4. Verlauf & Kommentare pro Gerät
 Chronologischer Verlauf (neueste zuerst) mit Autor und Zeitstempel. Jede/r kann

@@ -9,6 +9,7 @@ let nutzer = null;
 
 const zustand = {
   suche: '', standort: '', abteilung: '', status: '', wartung: '',
+  gruppe: '', // Gruppierungsfeld der Übersichtsliste ('' = keine Gruppierung)
   sortKey: 'status', sortDir: 1,
   offenesGeraet: null, // Geräte-ID im Detail-Modal
 };
@@ -73,7 +74,7 @@ function istAdmin() { return nutzer && nutzer.role === 'admin'; }
 function gefilterteListe() {
   const s = zustand.suche.toLowerCase();
   let liste = daten.devices.filter((g) => {
-    if (s && ![g.name, g.serial, g.inventoryNo, g.model, g.manufacturer]
+    if (s && ![g.name, g.serial, g.inventoryNo, g.model, g.manufacturer, g.room, g.team]
       .some((f) => (f || '').toLowerCase().includes(s))) return false;
     if (zustand.standort && g.location !== zustand.standort) return false;
     if (zustand.abteilung && g.department !== zustand.abteilung) return false;
@@ -131,26 +132,65 @@ function ausfallZelle(g) {
   return `<span class="defect-days">seit ${t === 0 ? 'heute' : t + ' Tag' + (t === 1 ? '' : 'en')}</span><br><small>gemeldet ${formatDatum(g.defectSince)}</small>`;
 }
 
+function geraetZeile(g) {
+  const st = STATUS_BADGE[effektiverStatus(g)];
+  return `<tr data-id="${g.id}">
+    <td><span class="badge ${st.klasse}">${st.text}</span></td>
+    <td><span class="device-name">${esc(g.name)}</span><br><span class="device-sub">${esc(g.model || '')} · Inv. ${esc(g.inventoryNo || '–')}</span></td>
+    <td>${esc(g.category)}</td>
+    <td>${esc(g.location)}${g.room ? `<br><span class="device-sub">Raum ${esc(g.room)}</span>` : ''}</td>
+    <td>${esc(g.department)}${g.team ? `<br><span class="device-sub">${esc(g.team)}</span>` : ''}</td>
+    <td>${esc(g.manufacturer)}</td>
+    <td>${wartungZelle(g)}</td>
+    <td>${ausfallZelle(g)}</td>
+    <td>${esc(g.distributor || '–')}<br><span class="device-sub">${esc(g.distPhone || '')}</span></td>
+    <td><button class="btn btn-sm btn-detail">Details</button></td>
+  </tr>`;
+}
+
+/** Anzeigename des Gruppierungswerts eines Geräts. */
+function gruppenWert(g) {
+  if (zustand.gruppe === 'status') return STATUS_BADGE[effektiverStatus(g)].text;
+  return g[zustand.gruppe] || 'Ohne Angabe';
+}
+
 function renderTabelle() {
   const liste = gefilterteListe();
   $('#empty-hint').classList.toggle('hidden', liste.length > 0);
-  $('#device-tbody').innerHTML = liste.map((g) => {
-    const st = STATUS_BADGE[effektiverStatus(g)];
-    return `<tr data-id="${g.id}">
-      <td><span class="badge ${st.klasse}">${st.text}</span></td>
-      <td><span class="device-name">${esc(g.name)}</span><br><span class="device-sub">${esc(g.model || '')} · Inv. ${esc(g.inventoryNo || '–')}</span></td>
-      <td>${esc(g.category)}</td>
-      <td>${esc(g.location)}</td>
-      <td>${esc(g.department)}</td>
-      <td>${esc(g.manufacturer)}</td>
-      <td>${wartungZelle(g)}</td>
-      <td>${ausfallZelle(g)}</td>
-      <td>${esc(g.distributor || '–')}<br><span class="device-sub">${esc(g.distPhone || '')}</span></td>
-      <td><button class="btn btn-sm btn-detail">Details</button></td>
-    </tr>`;
-  }).join('');
 
-  $$('#device-tbody tr').forEach((tr) => {
+  let html;
+  if (zustand.gruppe) {
+    const gruppen = new Map();
+    for (const g of liste) {
+      const key = gruppenWert(g);
+      if (!gruppen.has(key)) gruppen.set(key, []);
+      gruppen.get(key).push(g);
+    }
+    const keys = [...gruppen.keys()];
+    if (zustand.gruppe === 'status') {
+      const rang = Object.fromEntries(Object.entries(STATUS_BADGE).map(([k, v]) => [v.text, STATUS_RANG[k]]));
+      keys.sort((a, b) => rang[a] - rang[b]);
+    } else {
+      keys.sort((a, b) => (a === 'Ohne Angabe') - (b === 'Ohne Angabe') || a.localeCompare(b, 'de'));
+    }
+    html = keys.map((key) => {
+      const items = gruppen.get(key);
+      const defekt = items.filter((g) => effektiverStatus(g) === 'defekt').length;
+      const wartung = items.filter((g) => effektiverStatus(g) === 'wartung').length;
+      const hinweise = [
+        defekt ? `<span class="group-alert">${defekt} defekt</span>` : '',
+        wartung ? `<span class="group-warn">${wartung}× Wartung fällig</span>` : '',
+      ].filter(Boolean).join(' · ');
+      return `<tr class="group-row"><td colspan="10">${esc(key)}
+        <span class="group-count">${items.length} Gerät${items.length === 1 ? '' : 'e'}${hinweise ? ' · ' + hinweise : ''}</span></td></tr>`
+        + items.map(geraetZeile).join('');
+    }).join('');
+  } else {
+    html = liste.map(geraetZeile).join('');
+  }
+  $('#device-tbody').innerHTML = html;
+
+  $$('#device-tbody tr[data-id]').forEach((tr) => {
     tr.querySelector('.btn-detail').addEventListener('click', () => oeffneDetail(Number(tr.dataset.id)));
   });
 
@@ -184,6 +224,8 @@ function fuelleFilterOptionen() {
   dl('#dl-manufacturer', hersteller);
   dl('#dl-location', standorte);
   dl('#dl-department', abteilungen);
+  dl('#dl-room', new Set(daten.devices.map((g) => g.room).filter(Boolean)));
+  dl('#dl-team', new Set(daten.devices.map((g) => g.team).filter(Boolean)));
   dl('#dl-distributor', new Set(daten.devices.map((g) => g.distributor).filter(Boolean)));
 }
 
@@ -261,14 +303,15 @@ function renderDetail() {
       <div><dt>Hersteller / Modell</dt><dd>${esc(g.manufacturer)} ${esc(g.model || '')}</dd></div>
       <div><dt>Seriennummer</dt><dd>${esc(g.serial || '–')}</dd></div>
       <div><dt>Inventarnummer</dt><dd>${esc(g.inventoryNo || '–')}</dd></div>
-      <div><dt>Standort</dt><dd>${esc(g.location)}</dd></div>
-      <div><dt>Abteilung</dt><dd>${esc(g.department)}</dd></div>
+      <div><dt>Standort</dt><dd>${esc(g.location)}${g.room ? ' · Raum ' + esc(g.room) : ''}</dd></div>
+      <div><dt>Abteilung</dt><dd>${esc(g.department)}${g.team ? ' · ' + esc(g.team) : ''}</dd></div>
       <div><dt>Anschaffung</dt><dd>${formatDatum(g.purchaseDate)}</dd></div>
       <div><dt>Garantieende</dt><dd>${formatDatum(g.warrantyEnd)}</dd></div>
       <div><dt>Wartungsintervall</dt><dd>${g.maintenanceInterval ? 'alle ' + g.maintenanceInterval + ' Monate' : '–'}</dd></div>
       <div><dt>Letzte / nächste Wartung</dt><dd>${formatDatum(g.lastMaintenance)} / ${nw ? formatDatum(nw) : '–'}</dd></div>
-      <div><dt>Distributor</dt><dd>${esc(g.distributor || '–')}${g.distContact ? ', ' + esc(g.distContact) : ''}</dd></div>
-      <div><dt>Service-Kontakt</dt><dd>${esc(g.distPhone || '–')}${g.distEmail ? ' · <a href="mailto:' + esc(g.distEmail) + '">' + esc(g.distEmail) + '</a>' : ''}</dd></div>
+      <div><dt>Distributor</dt><dd>${esc(g.distributor || '–')}</dd></div>
+      <div><dt>Service-Kontakt (Technik)</dt><dd>${g.distContact ? esc(g.distContact) + ' · ' : ''}${esc(g.distPhone || '–')}${g.distEmail ? ' · <a href="mailto:' + esc(g.distEmail) + '">' + esc(g.distEmail) + '</a>' : ''}</dd></div>
+      <div><dt>Vertrieb / Außendienst</dt><dd>${g.salesName || g.salesPhone || g.salesEmail ? `${esc(g.salesName || '')}${g.salesPhone ? ' · ' + esc(g.salesPhone) : ''}${g.salesEmail ? ' · <a href="mailto:' + esc(g.salesEmail) + '">' + esc(g.salesEmail) + '</a>' : ''}` : '–'}</dd></div>
       ${dt !== null ? `<div><dt>Ausfalldauer</dt><dd class="defect-days">defekt seit ${dt === 0 ? 'heute' : dt + ' Tag' + (dt === 1 ? '' : 'en')} (gemeldet ${formatDatum(g.defectSince)})</dd></div>` : ''}
       <div><dt>Bisherige Defekte</dt><dd>${defektEreignisse(g).length}</dd></div>
     </dl>
@@ -376,10 +419,15 @@ function oeffneFormular(g) {
   $('#f-inventory').value = g?.inventoryNo || '';
   $('#f-location').value = g?.location || '';
   $('#f-department').value = g?.department || '';
+  $('#f-room').value = g?.room || '';
+  $('#f-team').value = g?.team || '';
   $('#f-distributor').value = g?.distributor || '';
   $('#f-dist-contact').value = g?.distContact || '';
   $('#f-dist-phone').value = g?.distPhone || '';
   $('#f-dist-email').value = g?.distEmail || '';
+  $('#f-sales-name').value = g?.salesName || '';
+  $('#f-sales-phone').value = g?.salesPhone || '';
+  $('#f-sales-email').value = g?.salesEmail || '';
   $('#f-purchase').value = g?.purchaseDate || '';
   $('#f-warranty').value = g?.warrantyEnd || '';
   $('#f-interval').value = g?.maintenanceInterval || '';
@@ -399,10 +447,15 @@ function speichereFormular(ev) {
     inventoryNo: $('#f-inventory').value.trim(),
     location: $('#f-location').value.trim(),
     department: $('#f-department').value.trim(),
+    room: $('#f-room').value.trim(),
+    team: $('#f-team').value.trim(),
     distributor: $('#f-distributor').value.trim(),
     distContact: $('#f-dist-contact').value.trim(),
     distPhone: $('#f-dist-phone').value.trim(),
     distEmail: $('#f-dist-email').value.trim(),
+    salesName: $('#f-sales-name').value.trim(),
+    salesPhone: $('#f-sales-phone').value.trim(),
+    salesEmail: $('#f-sales-email').value.trim(),
     purchaseDate: $('#f-purchase').value || null,
     warrantyEnd: $('#f-warranty').value || null,
     maintenanceInterval: $('#f-interval').value ? Number($('#f-interval').value) : null,
@@ -555,10 +608,11 @@ function initEvents() {
   $('#filter-abteilung').addEventListener('change', (e) => { zustand.abteilung = e.target.value; renderTabelle(); });
   $('#filter-status').addEventListener('change', (e) => { zustand.status = e.target.value; renderTabelle(); });
   $('#filter-wartung').addEventListener('change', (e) => { zustand.wartung = e.target.value; renderTabelle(); });
+  $('#group-by').addEventListener('change', (e) => { zustand.gruppe = e.target.value; renderTabelle(); });
   $('#filter-reset').addEventListener('click', () => {
-    Object.assign(zustand, { suche: '', standort: '', abteilung: '', status: '', wartung: '' });
+    Object.assign(zustand, { suche: '', standort: '', abteilung: '', status: '', wartung: '', gruppe: '' });
     $('#filter-search').value = '';
-    ['#filter-standort', '#filter-abteilung', '#filter-status', '#filter-wartung'].forEach((s) => { $(s).value = ''; });
+    ['#filter-standort', '#filter-abteilung', '#filter-status', '#filter-wartung', '#group-by'].forEach((s) => { $(s).value = ''; });
     renderTabelle();
   });
 

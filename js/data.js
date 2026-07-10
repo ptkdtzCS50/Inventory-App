@@ -98,10 +98,27 @@ function defektEreignisse(g) {
 
 /* ---------- Speicher ---------- */
 
+/** Später ergänzte Felder in bereits gespeicherten Datenbeständen nachrüsten. */
+const NEUE_FELDER = ['room', 'team', 'salesName', 'salesPhone', 'salesEmail'];
+
+function migriereDaten(daten) {
+  const seed = new Map(erzeugeDemoDaten().map((g) => [g.id, g]));
+  for (const g of daten.devices) {
+    const s = seed.get(g.id);
+    for (const feld of NEUE_FELDER) {
+      if (g[feld] === undefined) g[feld] = s ? (s[feld] ?? '') : '';
+    }
+  }
+}
+
 function ladeDaten() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const daten = JSON.parse(raw);
+      migriereDaten(daten);
+      return daten;
+    }
   } catch (e) { /* beschädigte Daten -> neu initialisieren */ }
   const daten = { devices: erzeugeDemoDaten(), nextId: 100 };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(daten));
@@ -119,18 +136,38 @@ function sysLog(tsIso, text) {
 }
 
 function erzeugeDemoDaten() {
-  const leica = { distributor: 'Leica Biosystems Service', distContact: 'Hr. Weber', distPhone: '+49 6441 123-456', distEmail: 'service@leica-demo.de' };
-  const sakura = { distributor: 'Sakura Finetek Germany', distContact: 'Fr. Krüger', distPhone: '+49 6023 987-654', distEmail: 'support@sakura-demo.de' };
-  const roche = { distributor: 'Roche Diagnostics Service', distContact: 'Hr. Yilmaz', distPhone: '+49 621 555-100', distEmail: 'ticket@roche-demo.de' };
-  const thermo = { distributor: 'Thermo Fisher Service', distContact: 'Fr. Lorenz', distPhone: '+49 800 246-800', distEmail: 'service.de@thermo-demo.de' };
-  const zeiss = { distributor: 'Zeiss Mikroskopie Service', distContact: 'Hr. Brandt', distPhone: '+49 7364 20-0', distEmail: 'mikroskopie@zeiss-demo.de' };
-  const labnord = { distributor: 'Labortechnik Nord GmbH', distContact: 'Fr. Petersen', distPhone: '+49 40 3344-556', distEmail: 'info@labnord-demo.de' };
+  // Pro Lieferant: technischer Service (Hotline) und Vertrieb/Außendienst getrennt
+  const leica = {
+    distributor: 'Leica Biosystems Service', distContact: 'Hr. Weber', distPhone: '+49 6441 123-456', distEmail: 'service@leica-demo.de',
+    salesName: 'Fr. Sommer', salesPhone: '+49 171 555-201', salesEmail: 'vertrieb@leica-demo.de',
+  };
+  const sakura = {
+    distributor: 'Sakura Finetek Germany', distContact: 'Fr. Krüger', distPhone: '+49 6023 987-654', distEmail: 'support@sakura-demo.de',
+    salesName: 'Hr. Brenner', salesPhone: '+49 160 555-322', salesEmail: 'sales@sakura-demo.de',
+  };
+  const roche = {
+    distributor: 'Roche Diagnostics Service', distContact: 'Hr. Yilmaz', distPhone: '+49 621 555-100', distEmail: 'ticket@roche-demo.de',
+    salesName: 'Fr. Dietrich', salesPhone: '+49 172 555-410', salesEmail: 'vertrieb@roche-demo.de',
+  };
+  const thermo = {
+    distributor: 'Thermo Fisher Service', distContact: 'Fr. Lorenz', distPhone: '+49 800 246-800', distEmail: 'service.de@thermo-demo.de',
+    salesName: 'Hr. Kaminski', salesPhone: '+49 151 555-118', salesEmail: 'sales.de@thermo-demo.de',
+  };
+  const zeiss = {
+    distributor: 'Zeiss Mikroskopie Service', distContact: 'Hr. Brandt', distPhone: '+49 7364 20-0', distEmail: 'mikroskopie@zeiss-demo.de',
+    salesName: 'Fr. Neuhaus', salesPhone: '+49 170 555-733', salesEmail: 'vertrieb@zeiss-demo.de',
+  };
+  const labnord = {
+    distributor: 'Labortechnik Nord GmbH', distContact: 'Fr. Petersen', distPhone: '+49 40 3344-556', distEmail: 'info@labnord-demo.de',
+    salesName: 'Hr. Petersen', salesPhone: '+49 40 3344-557', salesEmail: 'vertrieb@labnord-demo.de',
+  };
 
   return [
     {
       id: 1, name: 'Rotationsmikrotom 1', category: 'Mikrotom', manufacturer: 'Leica',
       model: 'RM2255', serial: 'LM-88341', inventoryNo: 'PATH-0001',
-      location: 'Hauptstandort Klinikum', department: 'Histologie', ...leica,
+      location: 'Hauptstandort Klinikum', department: 'Histologie',
+      room: 'EG 012', team: 'Team Zuschnitt & Schnitt', ...leica,
       purchaseDate: monateVor(50), warrantyEnd: monateVor(26),
       maintenanceInterval: 12, lastMaintenance: monateVor(8),
       status: 'ok', defectSince: null,
@@ -140,7 +177,8 @@ function erzeugeDemoDaten() {
     {
       id: 2, name: 'Färbeautomat H&E', category: 'Färbeautomat', manufacturer: 'Sakura',
       model: 'Tissue-Tek Prisma Plus', serial: 'SK-20419', inventoryNo: 'PATH-0002',
-      location: 'Hauptstandort Klinikum', department: 'Histologie', ...sakura,
+      location: 'Hauptstandort Klinikum', department: 'Histologie',
+      room: 'EG 014', team: 'Team Färbung', ...sakura,
       purchaseDate: monateVor(30), warrantyEnd: monateVor(6),
       maintenanceInterval: 6, lastMaintenance: tageVor(170),
       status: 'ok', defectSince: null,
@@ -150,7 +188,8 @@ function erzeugeDemoDaten() {
     {
       id: 3, name: 'Eindeckautomat 1', category: 'Eindeckautomat', manufacturer: 'Leica',
       model: 'CV5030', serial: 'LM-51102', inventoryNo: 'PATH-0003',
-      location: 'Hauptstandort Klinikum', department: 'Histologie', ...leica,
+      location: 'Hauptstandort Klinikum', department: 'Histologie',
+      room: 'EG 014', team: 'Team Färbung', ...leica,
       purchaseDate: monateVor(64), warrantyEnd: monateVor(40),
       maintenanceInterval: 12, lastMaintenance: monateVor(5),
       status: 'defekt', defectSince: tageVor(3),
@@ -166,7 +205,8 @@ function erzeugeDemoDaten() {
     {
       id: 4, name: 'Einbettautomat', category: 'Gewebeeinbettautomat', manufacturer: 'Leica',
       model: 'ASP300 S', serial: 'LM-33871', inventoryNo: 'PATH-0004',
-      location: 'Hauptstandort Klinikum', department: 'Histologie', ...leica,
+      location: 'Hauptstandort Klinikum', department: 'Histologie',
+      room: 'EG 010', team: 'Team Einbettung', ...leica,
       purchaseDate: monateVor(20), warrantyEnd: addMonate(monateVor(20), 24),
       maintenanceInterval: 12, lastMaintenance: monateVor(4),
       status: 'ok', defectSince: null, defectHistory: [], log: [],
@@ -174,7 +214,8 @@ function erzeugeDemoDaten() {
     {
       id: 5, name: 'Immunfärbeautomat', category: 'Immunfärbeautomat', manufacturer: 'Roche (Ventana)',
       model: 'BenchMark ULTRA', serial: 'VN-77210', inventoryNo: 'PATH-0005',
-      location: 'Hauptstandort Klinikum', department: 'Immunhistochemie', ...roche,
+      location: 'Hauptstandort Klinikum', department: 'Immunhistochemie',
+      room: 'OG1 105', team: 'Team IHC', ...roche,
       purchaseDate: monateVor(44), warrantyEnd: monateVor(20),
       maintenanceInterval: 6, lastMaintenance: monateVor(7),
       status: 'ok', defectSince: null,
@@ -184,7 +225,8 @@ function erzeugeDemoDaten() {
     {
       id: 6, name: 'Kryostat Schnellschnitt', category: 'Kryostat', manufacturer: 'Leica',
       model: 'CM1950', serial: 'LM-90455', inventoryNo: 'PATH-0006',
-      location: 'Hauptstandort Klinikum', department: 'Schnellschnitt-Labor', ...leica,
+      location: 'Hauptstandort Klinikum', department: 'Schnellschnitt-Labor',
+      room: 'EG 003 (OP-Nähe)', team: 'Team Schnellschnitt', ...leica,
       purchaseDate: monateVor(38), warrantyEnd: monateVor(14),
       maintenanceInterval: 12, lastMaintenance: monateVor(9),
       status: 'ok', defectSince: null,
@@ -194,7 +236,8 @@ function erzeugeDemoDaten() {
     {
       id: 7, name: 'Laborkühlschrank Archiv', category: 'Laborkühlschrank', manufacturer: 'Liebherr',
       model: 'LKUv 1613', serial: 'LB-40021', inventoryNo: 'PATH-0007',
-      location: 'Hauptstandort Klinikum', department: 'Probenarchiv', ...labnord,
+      location: 'Hauptstandort Klinikum', department: 'Probenarchiv',
+      room: 'UG 021', team: 'Team Archiv', ...labnord,
       purchaseDate: monateVor(70), warrantyEnd: monateVor(46),
       maintenanceInterval: 12, lastMaintenance: monateVor(2),
       status: 'ok', defectSince: null, defectHistory: [], log: [],
@@ -202,7 +245,8 @@ function erzeugeDemoDaten() {
     {
       id: 8, name: 'Mikroskop Befundung 1', category: 'Mikroskop', manufacturer: 'Zeiss',
       model: 'Axio Lab.A1', serial: 'ZS-11209', inventoryNo: 'PATH-0008',
-      location: 'Hauptstandort Klinikum', department: 'Zytologie', ...zeiss,
+      location: 'Hauptstandort Klinikum', department: 'Zytologie',
+      room: 'OG1 110', team: 'Team Befundung', ...zeiss,
       purchaseDate: monateVor(55), warrantyEnd: monateVor(31),
       maintenanceInterval: 24, lastMaintenance: monateVor(13),
       status: 'ok', defectSince: null, defectHistory: [], log: [],
@@ -210,7 +254,8 @@ function erzeugeDemoDaten() {
     {
       id: 9, name: 'Zytozentrifuge', category: 'Zentrifuge', manufacturer: 'Thermo Fisher',
       model: 'Cytospin 4', serial: 'TF-60833', inventoryNo: 'PATH-0009',
-      location: 'Hauptstandort Klinikum', department: 'Zytologie', ...thermo,
+      location: 'Hauptstandort Klinikum', department: 'Zytologie',
+      room: 'OG1 112', team: 'Team Zytologie', ...thermo,
       purchaseDate: monateVor(48), warrantyEnd: monateVor(24),
       maintenanceInterval: 12, lastMaintenance: monateVor(6),
       status: 'defekt', defectSince: tageVor(12),
@@ -224,7 +269,8 @@ function erzeugeDemoDaten() {
     {
       id: 10, name: 'Thermocycler PCR 1', category: 'Thermocycler', manufacturer: 'Thermo Fisher',
       model: 'ProFlex 96', serial: 'TF-91002', inventoryNo: 'PATH-0101',
-      location: 'Standort Nord', department: 'Molekularpathologie', ...thermo,
+      location: 'Standort Nord', department: 'Molekularpathologie',
+      room: 'Nord 2.01', team: 'Team Molekularpathologie', ...thermo,
       purchaseDate: monateVor(26), warrantyEnd: monateVor(2),
       maintenanceInterval: 12, lastMaintenance: monateVor(3),
       status: 'ok', defectSince: null, defectHistory: [], log: [],
@@ -232,7 +278,8 @@ function erzeugeDemoDaten() {
     {
       id: 11, name: 'Färbeautomat Sonderfärbung', category: 'Färbeautomat', manufacturer: 'Thermo Fisher',
       model: 'Gemini AS', serial: 'TF-33450', inventoryNo: 'PATH-0102',
-      location: 'Standort Nord', department: 'Histologie', ...thermo,
+      location: 'Standort Nord', department: 'Histologie',
+      room: 'Nord 1.05', team: 'Team Färbung Nord', ...thermo,
       purchaseDate: monateVor(58), warrantyEnd: monateVor(34),
       maintenanceInterval: 6, lastMaintenance: monateVor(1),
       status: 'ok', defectSince: null,
@@ -248,7 +295,8 @@ function erzeugeDemoDaten() {
     {
       id: 12, name: 'Ausgießstation', category: 'Paraffinausgießstation', manufacturer: 'Leica',
       model: 'EG1150 H', serial: 'LM-27764', inventoryNo: 'PATH-0103',
-      location: 'Standort Nord', department: 'Histologie', ...leica,
+      location: 'Standort Nord', department: 'Histologie',
+      room: 'Nord 1.03', team: 'Team Einbettung Nord', ...leica,
       purchaseDate: monateVor(34), warrantyEnd: monateVor(10),
       maintenanceInterval: 12, lastMaintenance: monateVor(11),
       status: 'ok', defectSince: null, defectHistory: [], log: [],
@@ -256,7 +304,8 @@ function erzeugeDemoDaten() {
     {
       id: 13, name: 'Mikroskop Befundung Nord', category: 'Mikroskop', manufacturer: 'Zeiss',
       model: 'Primostar 3', serial: 'ZS-55420', inventoryNo: 'PATH-0104',
-      location: 'Standort Nord', department: 'Zytologie', ...zeiss,
+      location: 'Standort Nord', department: 'Zytologie',
+      room: 'Nord 2.04', team: 'Team Befundung Nord', ...zeiss,
       purchaseDate: monateVor(15), warrantyEnd: addMonate(monateVor(15), 24),
       maintenanceInterval: 24, lastMaintenance: monateVor(15),
       status: 'ausser_betrieb', defectSince: null, defectHistory: [],

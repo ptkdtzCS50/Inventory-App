@@ -81,6 +81,17 @@
           <option value="faellig30">fällig in ≤ 30 Tagen</option>
           <option value="ueberfaellig">überfällig</option>
         </select>
+        <select id="group-by" title="Gruppierung der Liste">
+          <option value="">Keine Gruppierung</option>
+          <option value="location">Gruppieren: Standort</option>
+          <option value="department">Gruppieren: Abteilung</option>
+          <option value="room">Gruppieren: Raum</option>
+          <option value="team">Gruppieren: Team</option>
+          <option value="category">Gruppieren: Funktion/Typ</option>
+          <option value="manufacturer">Gruppieren: Hersteller</option>
+          <option value="distributor">Gruppieren: Distributor</option>
+          <option value="status">Gruppieren: Status</option>
+        </select>
         <button id="filter-reset" class="btn btn-ghost">Zurücksetzen</button>
       </div>
       <button id="btn-new-device" class="btn btn-primary admin-only">+ Neues Gerät</button>
@@ -189,10 +200,15 @@
         <label>Interne Inventarnummer<input type="text" id="f-inventory"></label>
         <label>Standort *<input type="text" id="f-location" list="dl-location" required></label>
         <label>Abteilung *<input type="text" id="f-department" list="dl-department" required></label>
+        <label>Raum<input type="text" id="f-room" list="dl-room" placeholder="z. B. EG 014"></label>
+        <label>Team<input type="text" id="f-team" list="dl-team" placeholder="z. B. Team Färbung"></label>
         <label>Distributor / Lieferant<input type="text" id="f-distributor" list="dl-distributor"></label>
-        <label>Ansprechpartner (Service)<input type="text" id="f-dist-contact"></label>
+        <label>Service-Kontakt (Technik)<input type="text" id="f-dist-contact" placeholder="Ansprechpartner Hotline"></label>
         <label>Telefon (Service-Hotline)<input type="tel" id="f-dist-phone"></label>
         <label>E-Mail (Service)<input type="email" id="f-dist-email"></label>
+        <label>Vertrieb / Außendienst<input type="text" id="f-sales-name" placeholder="Name Außendienstler/in"></label>
+        <label>Telefon (Vertrieb)<input type="tel" id="f-sales-phone"></label>
+        <label>E-Mail (Vertrieb)<input type="email" id="f-sales-email"></label>
         <label>Anschaffungsdatum<input type="date" id="f-purchase"></label>
         <label>Garantieende<input type="date" id="f-warranty"></label>
         <label>Wartungsintervall (Monate)<input type="number" id="f-interval" min="1" max="60" placeholder="z. B. 12"></label>
@@ -202,6 +218,8 @@
       <datalist id="dl-manufacturer"></datalist>
       <datalist id="dl-location"></datalist>
       <datalist id="dl-department"></datalist>
+      <datalist id="dl-room"></datalist>
+      <datalist id="dl-team"></datalist>
       <datalist id="dl-distributor"></datalist>
       <div class="modal-foot">
         <button type="button" class="btn btn-ghost" data-close="modal-form">Abbrechen</button>
