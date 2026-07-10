@@ -135,6 +135,46 @@ function ladeDaten() {
 
 function speichereDaten(daten) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(daten));
+  if (cloudAktiv()) cloudSpeichern(daten).catch((e) => console.warn('Cloud-Sync:', e.message));
+}
+
+/* ---------- Cloud-Synchronisation (optional, Supabase) ---------- */
+
+/** true, sobald in js/config.js Supabase-Zugangsdaten eingetragen sind. */
+function cloudAktiv() {
+  return typeof SUPABASE_URL !== 'undefined' && !!SUPABASE_URL && !!SUPABASE_ANON_KEY;
+}
+
+function cloudHeaders() {
+  return {
+    apikey: SUPABASE_ANON_KEY,
+    Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+    'Content-Type': 'application/json',
+  };
+}
+
+/** updated_at des zuletzt bekannten Cloud-Stands (Erkennung fremder Änderungen). */
+let cloudStand = null;
+
+/** Gemeinsamen Datenbestand aus der Cloud holen -> { daten, updated_at } oder null. */
+async function cloudLaden() {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/fuhrpark_state?id=eq.1&select=daten,updated_at`, {
+    headers: cloudHeaders(),
+  });
+  if (!res.ok) throw new Error(`Cloud-Abruf fehlgeschlagen (HTTP ${res.status})`);
+  return (await res.json())[0] || null;
+}
+
+/** Kompletten Datenbestand in die Cloud schreiben (upsert, last-write-wins). */
+async function cloudSpeichern(d) {
+  const stand = new Date().toISOString();
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/fuhrpark_state`, {
+    method: 'POST',
+    headers: { ...cloudHeaders(), Prefer: 'resolution=merge-duplicates' },
+    body: JSON.stringify({ id: 1, daten: d, updated_at: stand }),
+  });
+  if (!res.ok) throw new Error(`Cloud-Speichern fehlgeschlagen (HTTP ${res.status})`);
+  cloudStand = stand;
 }
 
 /* ---------- Demo-Daten ---------- */

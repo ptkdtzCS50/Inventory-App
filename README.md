@@ -12,9 +12,18 @@ Die App ist eine reine Browser-Anwendung ohne Server-Abhängigkeiten:
 1. Repository klonen oder herunterladen
 2. `index.html` im Browser öffnen – fertig
 
-Alternativ lässt sich das Repository direkt über **GitHub Pages** bereitstellen
-(Settings → Pages → Branch auswählen), dann ist die App per URL im ganzen Haus
-aufrufbar.
+### Preview im Web (GitHub Pages)
+
+Das Repository enthält einen Workflow (`.github/workflows/pages.yml`), der
+die App bei jedem Push automatisch als Website über **GitHub Pages**
+veröffentlicht:
+
+> https://ptkdtzcs50.github.io/Inventory-App/
+
+Damit ist die Preview im ganzen Haus (auch am Tablet) per URL aufrufbar,
+ohne dass lokal etwas installiert werden muss. Alternativ funktioniert auch
+Cloudflare Pages: dort ein neues Pages-Projekt anlegen, dieses Repository
+verbinden, Build-Befehl leer lassen (statische Seite) – mehr ist nicht nötig.
 
 Beim ersten Start werden realistische Demo-Daten geladen, damit alle Funktionen
 (Ampel-Status, Ausfalldauer, Statistik) sofort sichtbar sind. Eigene Geräte
@@ -114,31 +123,45 @@ Einfaches Login mit Namen und zwei Rollen:
 - Responsive – auch am Tablet im Labor nutzbar
 - Deutschsprachige Oberfläche, Datumsformat TT.MM.JJJJ
 
-## Wichtiger Hinweis: Prototyp mit lokaler Speicherung
+## Gemeinsamer Datenbestand (Supabase)
 
-Die Daten werden derzeit im **localStorage des jeweiligen Browsers**
-gespeichert. Das heißt:
+Ohne Konfiguration arbeitet die App lokal (localStorage des jeweiligen
+Browsers) – Daten bleiben auf einem Rechner dauerhaft erhalten, werden aber
+nicht zwischen Arbeitsplätzen geteilt.
 
-- Auf einem Rechner/Browser bleiben alle Daten dauerhaft erhalten
-- Verschiedene Rechner sehen **noch keinen gemeinsamen Datenbestand**
+Für den **gemeinsamen Datenbestand aller Arbeitsplätze** ist die
+Cloud-Synchronisation bereits eingebaut und muss nur aktiviert werden:
 
-Für den Team-Einsatz über mehrere Arbeitsplätze wird ein Backend benötigt
-(z. B. Supabase oder ein kleiner REST-Server mit Datenbank). Die Datenschicht
-ist in `js/data.js` bewusst gekapselt, sodass sich `ladeDaten()` /
-`speichereDaten()` ohne Änderungen an der Oberfläche gegen API-Aufrufe
-austauschen lassen.
+1. Kostenloses Projekt auf [supabase.com](https://supabase.com) anlegen
+2. Im SQL-Editor den Inhalt von `supabase/schema.sql` ausführen
+3. Unter *Settings → API* die Project-URL und den `anon`-Key kopieren und
+   in `js/config.js` eintragen
+
+Danach lädt die App beim Start den gemeinsamen Stand, schreibt jede
+Änderung sofort in die Cloud und übernimmt Änderungen anderer
+Arbeitsplätze automatisch (Abgleich alle 30 Sekunden). Der localStorage
+dient weiter als lokaler Puffer, falls die Verbindung kurz wegbricht.
+
+**Hinweis zum Prototyp-Modell:** Der Datenbestand liegt als ein
+JSON-Dokument in der Datenbank; bei gleichzeitigen Änderungen gewinnt der
+zuletzt Speichernde. Der `anon`-Key erlaubt Lesen und Schreiben – er
+sollte nur im Institut weitergegeben werden. Für echte Zugriffskontrolle
+wäre der nächste Ausbauschritt Supabase-Auth mit personenbezogenen Logins.
 
 ## Dateistruktur
 
 ```
 index.html          – App-Gerüst (Login, Übersicht, Statistik, Modals, Footer)
 css/style.css       – Layout, Ampelfarben, Responsive- und Druck-Styles
-js/data.js          – Datenmodell, Speicherung, Status-/Wartungslogik, Demo-Daten
+js/config.js        – Supabase-Zugangsdaten (leer = rein lokaler Betrieb)
+js/data.js          – Datenmodell, Speicherung, Cloud-Sync, Demo-Daten
 js/monitoring.js    – vorbereitete Schnittstelle zur Online-Statusabfrage
 js/stats.js         – Auswertungen (Punkt 7), SVG-Diagramm, CSV-Export
 js/app.js           – Oberfläche: Login, Tabelle, Filter, Detail/Chat, Statistik
+supabase/schema.sql – Datenbankschema für den gemeinsamen Datenbestand
 assets/logo.svg     – Firmenlogo (Wortmarke), austauschbar gegen Originaldatei
 assets/logo-mark.svg – Bildmarke für Header, austauschbar gegen Originaldatei
+.github/workflows/pages.yml – automatisches Preview-Deployment (GitHub Pages)
 ```
 
 Die beiden Logo-Dateien sind Platzhalter im Stil von avidiapharma.com – zum

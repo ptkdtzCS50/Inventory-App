@@ -695,6 +695,43 @@ function initCsvExporte() {
   });
 }
 
+/* ===================== Cloud-Synchronisation ===================== */
+
+/** Cloud-Stand übernehmen und Oberfläche aktualisieren. */
+function uebernehmeCloudStand(zeile) {
+  if (!zeile || !zeile.daten) return;
+  cloudStand = zeile.updated_at;
+  daten = zeile.daten;
+  migriereDaten(daten);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(daten));
+  if (nutzer) {
+    renderAlles();
+    if (!$('#modal-detail').classList.contains('hidden')) renderDetail();
+  }
+}
+
+/**
+ * Abgleich mit dem gemeinsamen Datenbestand (nur aktiv, wenn in
+ * js/config.js Supabase-Zugangsdaten eingetragen sind): beim Start
+ * Cloud-Stand übernehmen, danach alle 30 Sekunden auf Änderungen
+ * anderer Arbeitsplätze prüfen. Eigene Änderungen werden von
+ * speichereDaten() sofort hochgeladen.
+ */
+async function initCloudSync() {
+  if (!cloudAktiv()) return;
+  try {
+    const zeile = await cloudLaden();
+    if (zeile) uebernehmeCloudStand(zeile);
+    else await cloudSpeichern(daten); // erster Start: lokalen Stand hochladen
+  } catch (e) { console.warn('Cloud-Sync:', e.message); }
+  setInterval(async () => {
+    try {
+      const zeile = await cloudLaden();
+      if (zeile && zeile.updated_at !== cloudStand) uebernehmeCloudStand(zeile);
+    } catch (e) { /* offline o. ä. – nächster Versuch in 30 s */ }
+  }, 30000);
+}
+
 /* ===================== Navigation & Initialisierung ===================== */
 
 function renderAlles(filterNeu = true) {
@@ -786,3 +823,4 @@ function initEvents() {
 
 initEvents();
 initLogin();
+initCloudSync();
