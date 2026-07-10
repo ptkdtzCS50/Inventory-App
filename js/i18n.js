@@ -171,6 +171,12 @@ const UEBERSETZUNGEN = {
     'monitor.status': '{geraet} ist derzeit {status} (geprüft: {zeit}).',
     'monitor.erreichbar': 'ERREICHBAR', 'monitor.nichtErreichbar': 'NICHT ERREICHBAR',
     'monitor.laeuft': 'Frage ab …', 'monitor.fehler': 'Abfrage fehlgeschlagen: {fehler}',
+    'lizenz.demo': 'Demo-Version – nicht für den Produktivbetrieb lizenziert',
+    'lizenz.fuer': 'Lizenziert für {kunde} · Edition {edition} · gültig bis {datum}',
+    'lizenz.ablauf': '⚠ läuft in {n} Tagen ab',
+    'lizenz.abgelaufen': '⚠ Lizenz abgelaufen – bitte Dietz-Engineering kontaktieren',
+    'lizenz.limit': 'Gerätelimit der Lizenz erreicht ({n} Geräte). Bitte Lizenz erweitern – Dietz-Engineering kontaktieren.',
+    'krypto.aktiv': '🔒 AES-256-verschlüsselt',
   },
 
   /* ================= ENGLISH ================= */
@@ -314,6 +320,12 @@ const UEBERSETZUNGEN = {
     'monitor.status': '{geraet} is currently {status} (checked: {zeit}).',
     'monitor.erreichbar': 'REACHABLE', 'monitor.nichtErreichbar': 'NOT REACHABLE',
     'monitor.laeuft': 'Querying …', 'monitor.fehler': 'Query failed: {fehler}',
+    'lizenz.demo': 'Demo version – not licensed for production use',
+    'lizenz.fuer': 'Licensed to {kunde} · {edition} edition · valid until {datum}',
+    'lizenz.ablauf': '⚠ expires in {n} days',
+    'lizenz.abgelaufen': '⚠ License expired – please contact Dietz-Engineering',
+    'lizenz.limit': 'License device limit reached ({n} devices). Please upgrade – contact Dietz-Engineering.',
+    'krypto.aktiv': '🔒 AES-256 encrypted',
   },
 
   /* ================= FRANÇAIS ================= */
@@ -457,6 +469,12 @@ const UEBERSETZUNGEN = {
     'monitor.status': '{geraet} est actuellement {status} (vérifié : {zeit}).',
     'monitor.erreichbar': 'JOIGNABLE', 'monitor.nichtErreichbar': 'INJOIGNABLE',
     'monitor.laeuft': 'Interrogation …', 'monitor.fehler': 'Échec de la requête : {fehler}',
+    'lizenz.demo': 'Version de démonstration – non licenciée pour la production',
+    'lizenz.fuer': 'Licence : {kunde} · édition {edition} · valable jusqu’au {datum}',
+    'lizenz.ablauf': '⚠ expire dans {n} jours',
+    'lizenz.abgelaufen': '⚠ Licence expirée – veuillez contacter Dietz-Engineering',
+    'lizenz.limit': 'Limite d’appareils de la licence atteinte ({n}). Veuillez étendre la licence – contacter Dietz-Engineering.',
+    'krypto.aktiv': '🔒 Chiffrement AES-256',
   },
 
   /* ================= ITALIANO ================= */
@@ -600,6 +618,12 @@ const UEBERSETZUNGEN = {
     'monitor.status': '{geraet} è attualmente {status} (verificato: {zeit}).',
     'monitor.erreichbar': 'RAGGIUNGIBILE', 'monitor.nichtErreichbar': 'NON RAGGIUNGIBILE',
     'monitor.laeuft': 'Interrogazione …', 'monitor.fehler': 'Interrogazione fallita: {fehler}',
+    'lizenz.demo': 'Versione demo – non licenziata per l’uso produttivo',
+    'lizenz.fuer': 'Licenza: {kunde} · edizione {edition} · valida fino al {datum}',
+    'lizenz.ablauf': '⚠ scade tra {n} giorni',
+    'lizenz.abgelaufen': '⚠ Licenza scaduta – contattare Dietz-Engineering',
+    'lizenz.limit': 'Limite di apparecchi della licenza raggiunto ({n}). Estendere la licenza – contattare Dietz-Engineering.',
+    'krypto.aktiv': '🔒 Crittografia AES-256',
   },
 };
 

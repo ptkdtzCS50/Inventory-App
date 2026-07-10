@@ -17,6 +17,21 @@
 /** Hauswährung der App (Kosten, Statistik, CSV-Exporte). */
 const WAEHRUNG = 'CHF';
 
+/* ---------------------------------------------------------------------
+ * Lizenzschlüssel (von Dietz-Engineering ausgestellt)
+ * Erzeugung: tools/lizenz-generator.mjs (privater Schlüssel bleibt bei
+ * Dietz-Engineering). Leer = Demo-Version.
+ * ------------------------------------------------------------------- */
+const LIZENZ_SCHLUESSEL = 'eyJrdW5kZSI6IkF2aWRpYSBQaGFybWEgKFBpbG90KSIsImVkaXRpb24iOiJTdGFuZGFyZCIsIm1heEdlcmFldGUiOjIwMCwiZ3VlbHRpZ0JpcyI6IjIwMjctMDctMzEiLCJhdXNnZXN0ZWxsdCI6IjIwMjYtMDctMTAifQ.83ZnL1tcO4hCdrYoeW4d1ap5kCA11edFRa2fRz4lysq3JV_QNnY_CX3VWtu1ITOVnz2fojchbVi82LBXE-gwCQ';
+
+/* ---------------------------------------------------------------------
+ * Datenverschlüsselung (AES-256-GCM, Schlüssel aus dem Master-Passwort)
+ * true = localStorage UND Cloud-Daten werden verschlüsselt gespeichert;
+ * das Master-Passwort wird dann einmal pro Browser-Sitzung abgefragt.
+ * Setzt ein konfiguriertes MASTER_PASSWORT_HASH voraus. Details: js/krypto.js
+ * ------------------------------------------------------------------- */
+const DATEN_VERSCHLUESSELN = false;
+
 const SUPABASE_URL = '';      // z. B. 'https://abcdefgh.supabase.co'
 const SUPABASE_ANON_KEY = ''; // der öffentliche "anon"-Key des Projekts
 

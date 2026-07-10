@@ -1,0 +1,4 @@
+# Private Signatur-Schlüssel dürfen NIEMALS ins Repository
+privat.jwk.json
+*.privat.json
+*.pem

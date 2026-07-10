@@ -1,0 +1,47 @@
+PROPRIETÄRE SOFTWARE-LIZENZ / PROPRIETARY SOFTWARE LICENSE
+
+Gerätefuhrpark – Geräteverwaltung für Pathologische Institute
+© Dietz-Engineering. Alle Rechte vorbehalten. / All rights reserved.
+Designed by Dietz-Engineering · Initiiert von Christoph Lüttgens
+
+DEUTSCH
+-------
+Diese Software und der zugehörige Quellcode sind urheberrechtlich
+geschütztes Eigentum von Dietz-Engineering. Sie werden NICHT unter einer
+Open-Source-Lizenz bereitgestellt.
+
+Die Nutzung der Software ist nur mit einem gültigen, von Dietz-Engineering
+ausgestellten Lizenzschlüssel und im Rahmen des zugehörigen
+Lizenzvertrags gestattet. Ohne gültige Lizenz ist ausschließlich die
+zeitlich begrenzte Evaluation (Demo-Betrieb mit Beispieldaten) erlaubt.
+
+Untersagt sind insbesondere:
+- Vervielfältigung, Weitergabe oder Veröffentlichung des Quellcodes
+  oder von Teilen davon,
+- Bearbeitung, Übersetzung oder sonstige Umgestaltung,
+- produktiver Einsatz ohne gültigen Lizenzschlüssel,
+- Entfernen oder Verändern von Urheberrechts- und Lizenzvermerken.
+
+Ausgenommen sind Komponenten Dritter mit eigener Lizenz (siehe unten).
+
+ENGLISH
+-------
+This software and its source code are the copyrighted property of
+Dietz-Engineering. It is NOT provided under an open-source license.
+
+Use of the software is permitted only with a valid license key issued by
+Dietz-Engineering and within the scope of the corresponding license
+agreement. Without a valid license, only time-limited evaluation
+(demo operation with sample data) is permitted.
+
+In particular, the following are prohibited: copying, distributing or
+publishing the source code or parts thereof; modifying, translating or
+otherwise transforming it; productive use without a valid license key;
+removing or altering copyright and license notices.
+
+KOMPONENTEN DRITTER / THIRD-PARTY COMPONENTS
+--------------------------------------------
+js/vendor/qrcode.js – "QR Code Generator for JavaScript",
+Copyright (c) 2009 Kazuhiko Arase, MIT License
+(http://www.opensource.org/licenses/mit-license.php).
+Der MIT-Lizenzhinweis in der Datei bleibt unverändert erhalten.

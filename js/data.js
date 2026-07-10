@@ -163,6 +163,8 @@ function ladeDaten() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const daten = JSON.parse(raw);
+      // Verschlüsselter Bestand: erst nach Passworteingabe lesbar (-> null)
+      if (istVerschluesselt(daten)) return null;
       migriereDaten(daten);
       return daten;
     }
@@ -174,14 +176,43 @@ function ladeDaten() {
 }
 
 function speichereDaten(daten) {
+  // Verschlüsselter Modus: an der Speichergrenze chiffrieren (lokal + Cloud)
+  if (verschluesselungAktiv() && kryptoSchluessel) {
+    verschluessleDaten(daten, kryptoSchluessel).then((paket) => {
+      schreibeLocalStorage(paket);
+      if (cloudAktiv()) cloudSpeichern(paket).catch((e) => console.warn('Cloud-Sync:', e.message));
+    }).catch((e) => console.warn('Verschlüsselung:', e.message));
+    return;
+  }
+  schreibeLocalStorage(daten);
+  if (cloudAktiv()) cloudSpeichern(daten).catch((e) => console.warn('Cloud-Sync:', e.message));
+}
+
+function schreibeLocalStorage(obj) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(daten));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(obj));
   } catch (e) {
     // localStorage-Kontingent erschöpft (meist durch hochgeladene Dateien)
     alert(typeof t === 'function' ? t('dialog.speicherVoll') : 'Speicher voll.');
     throw e;
   }
-  if (cloudAktiv()) cloudSpeichern(daten).catch((e) => console.warn('Cloud-Sync:', e.message));
+}
+
+/** Nur lokal ablegen (im passenden Format), ohne Cloud-Upload. */
+function persistiereLokal(d) {
+  if (verschluesselungAktiv() && kryptoSchluessel) {
+    verschluessleDaten(d, kryptoSchluessel).then(schreibeLocalStorage).catch(() => {});
+  } else {
+    schreibeLocalStorage(d);
+  }
+}
+
+/** Verschlüsselten lokalen Bestand mit dem Sitzungsschlüssel öffnen. */
+async function entschluesselePersistenz() {
+  const paket = JSON.parse(localStorage.getItem(STORAGE_KEY));
+  const daten = await entschluessleDaten(paket, kryptoSchluessel);
+  migriereDaten(daten);
+  return daten;
 }
 
 /* ---------- Cloud-Synchronisation (optional, Supabase) ---------- */

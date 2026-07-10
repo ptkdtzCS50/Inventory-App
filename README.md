@@ -246,8 +246,50 @@ Die beiden Logo-Dateien sind Platzhalter im Stil von avidiapharma.com – zum
 Einsetzen des Original-Logos einfach die Dateien unter `assets/` durch die
 echten ersetzen (gleiche Dateinamen), es sind keine Code-Änderungen nötig.
 
+## Lizenzierung
+
+Die App ist **proprietäre Software von Dietz-Engineering** (siehe
+`LICENSE`) und prüft beim Start einen signierten Lizenzschlüssel:
+
+- Der Schlüssel enthält Kunde, Edition, **Gerätelimit** und **Ablaufdatum**
+  und ist mit dem privaten ECDSA-Schlüssel von Dietz-Engineering signiert.
+- Die App prüft die Signatur mit dem eingebetteten öffentlichen Schlüssel –
+  manipulierte Schlüssel fallen durch, die App läuft dann als
+  **Demo-Version** (Hinweis im Footer, ansonsten voll nutzbar).
+- Gültige Lizenz: Footer zeigt Kunde/Edition/Laufzeit; 30 Tage vor Ablauf
+  erscheint eine Warnung; das Gerätelimit wird beim Anlegen neuer Geräte
+  durchgesetzt.
+- Lizenzen erzeugt Dietz-Engineering mit `tools/lizenz-generator.mjs`
+  (Schlüsselpaar erzeugen, Lizenz signieren). **Der private Schlüssel darf
+  niemals ins Repository oder zum Kunden gelangen.**
+
+Ehrliche Einordnung: Die Prüfung läuft clientseitig und ist ein
+Lizenz-Gate wie bei klassischer Desktop-Software – rechtlich bindend ist
+der Lizenzvertrag, technisch verhindert das Gate beiläufige Weiternutzung.
+
+## Datenverschlüsselung (vorbereitet)
+
+Mit `DATEN_VERSCHLUESSELN = true` in `js/config.js` wird der komplette
+Datenbestand **AES-256-GCM-verschlüsselt** gespeichert – im localStorage
+und in der Cloud (Supabase sieht dann nur Chiffretext, „Zero-Knowledge").
+
+- Schlüsselableitung aus dem Master-Passwort per PBKDF2-SHA-256
+  (210'000 Iterationen); das Passwort wird dann **einmal pro
+  Browser-Sitzung** abgefragt (statt einmal pro Gerät).
+- Der Sitzungsschlüssel liegt in der sessionStorage und verschwindet beim
+  Schließen des Tabs.
+- Grenzen: Wer das Master-Passwort kennt, kann die Daten lesen. Das
+  PBKDF2-Salt ist installationsübergreifend fix, damit alle Arbeitsplätze
+  denselben Schlüssel ableiten (nötig für den gemeinsamen
+  Cloud-Datenbestand) – beim Ausbau mit Supabase-Auth wandert das Salt
+  pro Mandant in die Datenbank.
+- **Wichtig:** Geht das Master-Passwort verloren, sind verschlüsselte
+  Daten nicht wiederherstellbar.
+
+In der öffentlichen Demo ist die Verschlüsselung bewusst ausgeschaltet.
+
 ## Copyright
 
-© Dietz-Engineering · Alle Rechte vorbehalten
+© Dietz-Engineering · Alle Rechte vorbehalten (proprietär, siehe `LICENSE`)
 
 Designed by **Dietz-Engineering** · Initiiert von **Christoph Lüttgens**

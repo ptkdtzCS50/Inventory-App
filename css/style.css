@@ -362,3 +362,10 @@ tbody tr:last-child td { border-bottom: none; }
   .filters input[type="search"] { min-width: 140px; }
   .user-info span:first-child { display: none; }
 }
+
+/* ===== Lizenz & Verschlüsselung (Footer) ===== */
+.lizenz-zeile { font-size: 12px; margin-top: 4px; }
+.lizenz-status { color: var(--muted); }
+.lizenz-status.lizenz-demo { color: var(--yellow); font-weight: 600; }
+.lizenz-status.lizenz-warn { color: var(--red); font-weight: 600; }
+.krypto-status { color: var(--green); margin-left: 8px; }

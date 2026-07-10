@@ -8,6 +8,9 @@
  * ===================================================================== */
 
 let daten = ladeDaten();
+/** true, solange ein verschlüsselter Bestand auf die Passworteingabe wartet. */
+let datenGesperrt = daten === null;
+if (datenGesperrt) daten = { devices: [], nextId: 100, customFields: [], nextFieldId: 1 };
 let nutzer = null;
 
 const zustand = {
@@ -53,13 +56,17 @@ function istFreigeschaltet() {
 
 function initLogin() {
   try { nutzer = JSON.parse(localStorage.getItem(SESSION_KEY)); } catch (e) { nutzer = null; }
-  if (nutzer && nutzer.name && istFreigeschaltet()) { zeigeApp(); } else { zeigeLogin(); }
+  const bereit = istFreigeschaltet() && !datenGesperrt && !(verschluesselungAktiv() && !kryptoSchluessel);
+  if (nutzer && nutzer.name && bereit) { zeigeApp(); } else { zeigeLogin(); }
 
   $('#login-form').addEventListener('submit', async (ev) => {
     ev.preventDefault();
-    // Master-Passwort prüfen (nur wenn konfiguriert und noch nicht freigeschaltet)
-    if (masterAktiv() && !istFreigeschaltet()) {
-      const hash = await sha256Hex($('#login-passwort').value);
+    // Master-Passwort prüfen (wenn konfiguriert und noch nicht freigeschaltet
+    // oder ein Verschlüsselungs-Schlüssel für diese Sitzung fehlt)
+    const passwortNoetig = masterAktiv() && (!istFreigeschaltet() || (verschluesselungAktiv() && !kryptoSchluessel));
+    if (passwortNoetig) {
+      const passwort = $('#login-passwort').value;
+      const hash = await sha256Hex(passwort);
       if (hash !== MASTER_PASSWORT_HASH) {
         $('#passwort-fehler').classList.remove('hidden');
         $('#login-passwort').value = '';
@@ -67,6 +74,19 @@ function initLogin() {
         return;
       }
       localStorage.setItem(UNLOCK_KEY, MASTER_PASSWORT_HASH);
+      if (verschluesselungAktiv()) {
+        await leiteKryptoSchluesselAb(passwort);
+        if (datenGesperrt) {
+          try {
+            daten = await entschluesselePersistenz();
+            datenGesperrt = false;
+          } catch (e) {
+            $('#passwort-fehler').classList.remove('hidden');
+            return;
+          }
+        }
+        persistiereLokal(daten); // Bestand ab jetzt verschlüsselt ablegen
+      }
     }
     const name = $('#login-name').value.trim();
     if (!name) return;
@@ -85,8 +105,10 @@ function initLogin() {
 function zeigeLogin() {
   $('#login-screen').classList.remove('hidden');
   $('#app').classList.add('hidden');
-  // Passwortfeld nur zeigen, wenn ein Master-Passwort gesetzt und dieses Gerät noch nicht freigeschaltet ist
-  $('#passwort-feld').classList.toggle('hidden', istFreigeschaltet());
+  // Passwortfeld zeigen, wenn (a) Gerät noch nicht freigeschaltet oder
+  // (b) Verschlüsselung aktiv ist und der Sitzungsschlüssel fehlt
+  const passwortNoetig = !istFreigeschaltet() || (verschluesselungAktiv() && !kryptoSchluessel);
+  $('#passwort-feld').classList.toggle('hidden', !masterAktiv() || !passwortNoetig);
   $('#passwort-fehler').classList.add('hidden');
 }
 
@@ -759,6 +781,10 @@ function speichereFormular(ev) {
     Object.assign(g, felder);
     systemEintrag(g, t('sys.bearbeitet', { name: nutzer.name }));
   } else {
+    if (daten.devices.length >= lizenzGeraetelimit()) {
+      alert(t('lizenz.limit', { n: lizenzGeraetelimit() }));
+      return;
+    }
     const g = {
       id: daten.nextId++, ...felder,
       status: 'ok', defectSince: null, defectHistory: [], log: [],
@@ -1173,12 +1199,17 @@ function erinnerungsMail() {
 /* ===================== Cloud-Synchronisation ===================== */
 
 /** Cloud-Stand übernehmen und Oberfläche aktualisieren. */
-function uebernehmeCloudStand(zeile) {
+async function uebernehmeCloudStand(zeile) {
   if (!zeile || !zeile.daten) return;
+  let d = zeile.daten;
+  if (istVerschluesselt(d)) {
+    if (!kryptoSchluessel) return; // noch gesperrt – nächster Abgleich nach dem Login
+    try { d = await entschluessleDaten(d, kryptoSchluessel); } catch (e) { return; }
+  }
   cloudStand = zeile.updated_at;
-  daten = zeile.daten;
+  daten = d;
   migriereDaten(daten);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(daten));
+  persistiereLokal(daten);
   if (nutzer) {
     renderAlles();
     if (!$('#modal-detail').classList.contains('hidden')) renderDetail();
@@ -1196,15 +1227,37 @@ async function initCloudSync() {
   if (!cloudAktiv()) return;
   try {
     const zeile = await cloudLaden();
-    if (zeile) uebernehmeCloudStand(zeile);
-    else await cloudSpeichern(daten); // erster Start: lokalen Stand hochladen
+    if (zeile) await uebernehmeCloudStand(zeile);
+    else if (!datenGesperrt) await cloudSpeichern(daten); // erster Start: lokalen Stand hochladen
   } catch (e) { console.warn('Cloud-Sync:', e.message); }
   setInterval(async () => {
     try {
       const zeile = await cloudLaden();
-      if (zeile && zeile.updated_at !== cloudStand) uebernehmeCloudStand(zeile);
+      if (zeile && zeile.updated_at !== cloudStand) await uebernehmeCloudStand(zeile);
     } catch (e) { /* offline o. ä. – nächster Versuch in 30 s */ }
   }, 30000);
+}
+
+/* ===================== Lizenzanzeige ===================== */
+
+async function renderLizenz() {
+  const info = await pruefeLizenz();
+  const el = $('#lizenz-status');
+  if (el) {
+    if (!info) {
+      el.textContent = t('lizenz.demo');
+      el.className = 'lizenz-status lizenz-demo';
+    } else if (info.abgelaufen) {
+      el.textContent = t('lizenz.abgelaufen');
+      el.className = 'lizenz-status lizenz-warn';
+    } else {
+      el.textContent = t('lizenz.fuer', { kunde: info.kunde, edition: info.edition, datum: formatDatum(info.gueltigBis) })
+        + (info.restTage <= 30 ? ' · ' + t('lizenz.ablauf', { n: info.restTage }) : '');
+      el.className = 'lizenz-status' + (info.restTage <= 30 ? ' lizenz-warn' : '');
+    }
+  }
+  const krypto = $('#krypto-status');
+  if (krypto) krypto.textContent = verschluesselungAktiv() ? t('krypto.aktiv') : '';
 }
 
 /* ===================== Navigation & Initialisierung ===================== */
@@ -1323,6 +1376,7 @@ function initEvents() {
       renderAlles();
       if (!$('#modal-detail').classList.contains('hidden')) renderDetail();
     }
+    renderLizenz();
   }));
 
   // Copyright-Jahr im Footer und auf der Login-Karte
@@ -1332,7 +1386,17 @@ function initEvents() {
   setInterval(() => { if (nutzer) renderAlles(false); }, 60000);
 }
 
-wendeSprachenAn();
-initEvents();
-initLogin();
-initCloudSync();
+(async () => {
+  wendeSprachenAn();
+  initEvents();
+  // Verschlüsselung: Sitzungsschlüssel wiederherstellen (Reload im selben Tab)
+  if (verschluesselungAktiv() && datenGesperrt && await ladeKryptoSchluesselAusSitzung()) {
+    try {
+      daten = await entschluesselePersistenz();
+      datenGesperrt = false;
+    } catch (e) { kryptoSchluessel = null; /* Passwort erneut nötig */ }
+  }
+  initLogin();
+  initCloudSync();
+  renderLizenz();
+})();
