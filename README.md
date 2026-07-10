@@ -182,11 +182,24 @@ die käme mit Supabase-Auth als Ausbauschritt.
 - **Export**: alle Tabellen als CSV (Excel-kompatibel), gesamte Statistikseite
   über „Als PDF drucken"
 
+## Sprachen & Währung
+
+Die Oberfläche ist **viersprachig**: Deutsch, English, Français, Italiano.
+Die Sprache wird über den Umschalter im Header (oder auf der Login-Karte)
+gewählt, pro Gerät gemerkt und beim ersten Besuch aus der Browsersprache
+vorbelegt. Alle Ansichten, Dialoge, E-Mail-Vorlagen und CSV-Kopfzeilen sind
+übersetzt; erfasste Daten (Gerätenamen, Verlaufseinträge) bleiben in der
+Sprache, in der sie geschrieben wurden. Übersetzungen liegen zentral in
+`js/i18n.js`.
+
+Die **Hauswährung ist CHF** (Schweizer Zahlenformat, z. B. CHF 1'250.00) –
+zentral einstellbar über `WAEHRUNG` in `js/config.js`.
+
 ## Technik
 
-- Reines HTML/CSS/JavaScript, keine Build-Tools, keine externen Bibliotheken
+- Reines HTML/CSS/JavaScript, keine Build-Tools, keine externen Dienste
 - Responsive – auch am Tablet im Labor nutzbar
-- Deutschsprachige Oberfläche, Datumsformat TT.MM.JJJJ
+- Datumsformat TT.MM.JJJJ
 
 ## Gemeinsamer Datenbestand (Supabase)
 

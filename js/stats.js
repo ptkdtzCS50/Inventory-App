@@ -152,7 +152,7 @@ function statDistributor(devices, filter) {
   const events = gefilterteEreignisse(devices, filter).filter((e) => e.end);
   const map = new Map();
   for (const e of events) {
-    const name = e.geraet.distributor || 'Unbekannt';
+    const name = e.geraet.distributor || t('ohneAngabe');
     if (!map.has(name)) map.set(name, { distributor: name, reparaturen: 0, tageGesamt: 0 });
     const s = map.get(name);
     s.reparaturen++;
@@ -193,7 +193,7 @@ function balkendiagramm(container, daten) {
   const w = padL + daten.length * (barW + gap) + 10;
   const max = Math.max(1, ...daten.map((d) => d.value));
   const skala = (h - padT - padB) / max;
-  let svg = `<svg width="${w}" height="${h}" role="img" aria-label="Defekte pro Monat">`;
+  let svg = `<svg width="${w}" height="${h}" role="img" aria-label="${t('stat.proMonat')}">`;
   // Grundlinie
   svg += `<line x1="${padL}" y1="${h - padB}" x2="${w - 5}" y2="${h - padB}" stroke="#d1d5db"/>`;
   daten.forEach((d, i) => {
@@ -201,7 +201,7 @@ function balkendiagramm(container, daten) {
     const bh = Math.round(d.value * skala);
     const y = h - padB - bh;
     if (d.value > 0) {
-      svg += `<rect class="bar-rect" x="${x}" y="${y}" width="${barW}" height="${bh}" rx="3"><title>${d.label}: ${d.value} Defekt(e)</title></rect>`;
+      svg += `<rect class="bar-rect" x="${x}" y="${y}" width="${barW}" height="${bh}" rx="3"><title>${d.label}: ${d.value}</title></rect>`;
       svg += `<text class="chart-value" x="${x + barW / 2}" y="${y - 5}" text-anchor="middle">${d.value}</text>`;
     }
     svg += `<text class="chart-axis" x="${x + barW / 2}" y="${h - padB + 15}" text-anchor="middle">${d.label}</text>`;

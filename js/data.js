@@ -178,7 +178,7 @@ function speichereDaten(daten) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(daten));
   } catch (e) {
     // localStorage-Kontingent erschöpft (meist durch hochgeladene Dateien)
-    alert('Speicher voll: Der Browser-Speicher ist erschöpft. Bitte große Dokument-Dateien entfernen und stattdessen als Link hinterlegen.');
+    alert(typeof t === 'function' ? t('dialog.speicherVoll') : 'Speicher voll.');
     throw e;
   }
   if (cloudAktiv()) cloudSpeichern(daten).catch((e) => console.warn('Cloud-Sync:', e.message));

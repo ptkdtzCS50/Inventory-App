@@ -27,12 +27,9 @@ function esc(s) {
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
-const STATUS_BADGE = {
-  ok: { klasse: 'b-ok', text: 'Funktionsfähig' },
-  wartung: { klasse: 'b-wartung', text: 'Wartung fällig' },
-  defekt: { klasse: 'b-defekt', text: 'Defekt' },
-  ausser_betrieb: { klasse: 'b-ausser', text: 'Außer Betrieb' },
-};
+const STATUS_KLASSEN = { ok: 'b-ok', wartung: 'b-wartung', defekt: 'b-defekt', ausser_betrieb: 'b-ausser' };
+/** Ampel-Info (Klasse + übersetzter Text) zu einem Status. */
+function statusInfo(s) { return { klasse: STATUS_KLASSEN[s], text: t('status.' + s) }; }
 const STATUS_RANG = { defekt: 0, wartung: 1, ok: 2, ausser_betrieb: 3 };
 
 /* ===================== Login & Rollen ===================== */
@@ -97,7 +94,7 @@ function zeigeApp() {
   $('#login-screen').classList.add('hidden');
   $('#app').classList.remove('hidden');
   $('#user-name').textContent = nutzer.name;
-  $('#user-role').textContent = nutzer.role === 'admin' ? 'Admin' : 'Mitarbeiter';
+  $('#user-role').textContent = nutzer.role === 'admin' ? t('rolle.admin') : t('rolle.mitarbeiter');
   $$('.admin-only').forEach((el) => el.classList.toggle('hidden', nutzer.role !== 'admin'));
   renderAlles();
   // Deep-Link aus QR-Code (?geraet=ID): Detailansicht direkt öffnen
@@ -120,9 +117,9 @@ function gefilterteListe() {
     if (zustand.standort && g.location !== zustand.standort) return false;
     if (zustand.abteilung && g.department !== zustand.abteilung) return false;
     if (zustand.status && effektiverStatus(g) !== zustand.status) return false;
-    const t = wartungTageVerbleibend(g);
-    if (zustand.wartung === 'faellig30' && !(t !== null && t <= WARTUNG_VORLAUF_TAGE)) return false;
-    if (zustand.wartung === 'ueberfaellig' && !(t !== null && t < 0)) return false;
+    const wt = wartungTageVerbleibend(g);
+    if (zustand.wartung === 'faellig30' && !(wt !== null && wt <= WARTUNG_VORLAUF_TAGE)) return false;
+    if (zustand.wartung === 'ueberfaellig' && !(wt !== null && wt < 0)) return false;
     return true;
   });
 
@@ -146,11 +143,11 @@ function renderKacheln() {
   const zaehler = { gesamt: daten.devices.length, ok: 0, wartung: 0, defekt: 0, ausser_betrieb: 0 };
   for (const g of daten.devices) zaehler[effektiverStatus(g)]++;
   $('#dashboard-tiles').innerHTML = `
-    <div class="tile" data-status=""><div class="tile-num">${zaehler.gesamt}</div><div class="tile-label">Geräte gesamt</div></div>
-    <div class="tile t-green" data-status="ok"><div class="tile-num">${zaehler.ok}</div><div class="tile-label">Funktionsfähig</div></div>
-    <div class="tile t-yellow" data-status="wartung"><div class="tile-num">${zaehler.wartung}</div><div class="tile-label">Wartung fällig</div></div>
-    <div class="tile t-red" data-status="defekt"><div class="tile-num">${zaehler.defekt}</div><div class="tile-label">Defekt</div></div>
-    <div class="tile t-grey" data-status="ausser_betrieb"><div class="tile-num">${zaehler.ausser_betrieb}</div><div class="tile-label">Außer Betrieb</div></div>`;
+    <div class="tile" data-status=""><div class="tile-num">${zaehler.gesamt}</div><div class="tile-label">${t('kachel.gesamt')}</div></div>
+    <div class="tile t-green" data-status="ok"><div class="tile-num">${zaehler.ok}</div><div class="tile-label">${t('kachel.ok')}</div></div>
+    <div class="tile t-yellow" data-status="wartung"><div class="tile-num">${zaehler.wartung}</div><div class="tile-label">${t('kachel.wartung')}</div></div>
+    <div class="tile t-red" data-status="defekt"><div class="tile-num">${zaehler.defekt}</div><div class="tile-label">${t('kachel.defekt')}</div></div>
+    <div class="tile t-grey" data-status="ausser_betrieb"><div class="tile-num">${zaehler.ausser_betrieb}</div><div class="tile-label">${t('kachel.ausser')}</div></div>`;
   $$('#dashboard-tiles .tile').forEach((tile) => tile.addEventListener('click', () => {
     zustand.status = tile.dataset.status;
     $('#filter-status').value = zustand.status;
@@ -160,44 +157,45 @@ function renderKacheln() {
 
 function wartungZelle(g) {
   const f = naechsteFaelligkeit(g);
-  if (!f) return '<small>keine Prüfungen</small>';
+  if (!f) return `<small>${t('zelle.keinePruefungen')}</small>`;
   const label = `${formatDatum(f.datum)} <small>(${esc(f.art)})</small>`;
-  if (f.tage < 0) return `<span class="maint-overdue">${label}<br><small>überfällig seit ${-f.tage} Tagen</small></span>`;
-  if (f.tage <= WARTUNG_VORLAUF_TAGE) return `<span class="maint-soon">${label}<br><small>in ${f.tage} Tagen</small></span>`;
-  return `${label}<br><small>in ${f.tage} Tagen</small>`;
+  if (f.tage < 0) return `<span class="maint-overdue">${label}<br><small>${t('zelle.ueberfaelligSeit', { n: -f.tage })}</small></span>`;
+  if (f.tage <= WARTUNG_VORLAUF_TAGE) return `<span class="maint-soon">${label}<br><small>${t('zelle.inTagen', { n: f.tage })}</small></span>`;
+  return `${label}<br><small>${t('zelle.inTagen', { n: f.tage })}</small>`;
 }
 
-/** Betrag als Euro formatieren. */
-function eur(n) {
-  return (n || 0).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
+/** Betrag in der Hauswährung (CHF) formatieren, Schweizer Zahlenformat. */
+function geld(n) {
+  const waehrung = typeof WAEHRUNG !== 'undefined' ? WAEHRUNG : 'CHF';
+  return (n || 0).toLocaleString(LOCALES[sprache] || 'de-CH', { style: 'currency', currency: waehrung });
 }
 
 function ausfallZelle(g) {
-  const t = defektTage(g);
-  if (t === null) return '–';
-  return `<span class="defect-days">seit ${t === 0 ? 'heute' : t + ' Tag' + (t === 1 ? '' : 'en')}</span><br><small>gemeldet ${formatDatum(g.defectSince)}</small>`;
+  const tage = defektTage(g);
+  if (tage === null) return '–';
+  return `<span class="defect-days">${tage === 0 ? t('zelle.seitHeute') : t('zelle.seitTagen', { n: tage })}</span><br><small>${t('zelle.gemeldet')} ${formatDatum(g.defectSince)}</small>`;
 }
 
 function geraetZeile(g) {
-  const st = STATUS_BADGE[effektiverStatus(g)];
+  const st = statusInfo(effektiverStatus(g));
   return `<tr data-id="${g.id}">
     <td><span class="badge ${st.klasse}">${st.text}</span></td>
-    <td><span class="device-name">${esc(g.name)}</span><br><span class="device-sub">${esc(g.model || '')} · Inv. ${esc(g.inventoryNo || '–')}</span></td>
+    <td><span class="device-name">${esc(g.name)}</span><br><span class="device-sub">${esc(g.model || '')} · ${t('zelle.inv')} ${esc(g.inventoryNo || '–')}</span></td>
     <td>${esc(g.category)}</td>
-    <td>${esc(g.location)}${g.room ? `<br><span class="device-sub">Raum ${esc(g.room)}</span>` : ''}</td>
+    <td>${esc(g.location)}${g.room ? `<br><span class="device-sub">${t('zelle.raum')} ${esc(g.room)}</span>` : ''}</td>
     <td>${esc(g.department)}${g.team ? `<br><span class="device-sub">${esc(g.team)}</span>` : ''}</td>
     <td>${esc(g.manufacturer)}</td>
     <td>${wartungZelle(g)}</td>
     <td>${ausfallZelle(g)}</td>
     <td>${esc(g.distributor || '–')}<br><span class="device-sub">${esc(g.distPhone || '')}</span></td>
-    <td><button class="btn btn-sm btn-detail">Details</button></td>
+    <td><button class="btn btn-sm btn-detail">${t('zelle.details')}</button></td>
   </tr>`;
 }
 
 /** Anzeigename des Gruppierungswerts eines Geräts. */
 function gruppenWert(g) {
-  if (zustand.gruppe === 'status') return STATUS_BADGE[effektiverStatus(g)].text;
-  return g[zustand.gruppe] || 'Ohne Angabe';
+  if (zustand.gruppe === 'status') return statusInfo(effektiverStatus(g)).text;
+  return g[zustand.gruppe] || t('ohneAngabe');
 }
 
 function renderTabelle() {
@@ -214,10 +212,10 @@ function renderTabelle() {
     }
     const keys = [...gruppen.keys()];
     if (zustand.gruppe === 'status') {
-      const rang = Object.fromEntries(Object.entries(STATUS_BADGE).map(([k, v]) => [v.text, STATUS_RANG[k]]));
+      const rang = Object.fromEntries(Object.keys(STATUS_KLASSEN).map((k) => [t('status.' + k), STATUS_RANG[k]]));
       keys.sort((a, b) => rang[a] - rang[b]);
     } else {
-      keys.sort((a, b) => (a === 'Ohne Angabe') - (b === 'Ohne Angabe') || a.localeCompare(b, 'de'));
+      keys.sort((a, b) => (a === t('ohneAngabe')) - (b === t('ohneAngabe')) || a.localeCompare(b, sprache));
     }
     html = keys.map((key) => {
       const items = gruppen.get(key);
@@ -225,12 +223,12 @@ function renderTabelle() {
       const defekt = items.filter((g) => effektiverStatus(g) === 'defekt').length;
       const wartung = items.filter((g) => effektiverStatus(g) === 'wartung').length;
       const hinweise = [
-        defekt ? `<span class="group-alert">${defekt} defekt</span>` : '',
-        wartung ? `<span class="group-warn">${wartung}× Wartung fällig</span>` : '',
+        defekt ? `<span class="group-alert">${t('gruppe.defekt', { n: defekt })}</span>` : '',
+        wartung ? `<span class="group-warn">${t('gruppe.wartung', { n: wartung })}</span>` : '',
       ].filter(Boolean).join(' · ');
-      return `<tr class="group-row" data-group="${esc(key)}" title="Klicken zum ${zu ? 'Ausklappen' : 'Einklappen'}">
+      return `<tr class="group-row" data-group="${esc(key)}" title="${zu ? t('gruppe.aufklappen') : t('gruppe.zuklappen')}">
         <td colspan="10"><span class="group-toggle">${zu ? '▸' : '▾'}</span> ${esc(key)}
-        <span class="group-count">${items.length} Gerät${items.length === 1 ? '' : 'e'}${hinweise ? ' · ' + hinweise : ''}</span></td></tr>`
+        <span class="group-count">${t('gruppe.geraete', { n: items.length })}${hinweise ? ' · ' + hinweise : ''}</span></td></tr>`
         + (zu ? '' : items.map(geraetZeile).join(''));
     }).join('');
   } else {
@@ -257,7 +255,18 @@ function renderTabelle() {
   });
 }
 
+/** Gruppierungs-Auswahl in der aktiven Sprache aufbauen. */
+function fuelleGruppenOptionen() {
+  const dims = ['location', 'department', 'room', 'team', 'category', 'manufacturer', 'distributor', 'status'];
+  const el = $('#group-by');
+  const wert = el.value;
+  el.innerHTML = `<option value="">${t('filter.keineGruppe')}</option>` +
+    dims.map((d) => `<option value="${d}">${t('filter.gruppieren', { dim: t('dim.' + d) })}</option>`).join('');
+  el.value = wert;
+}
+
 function fuelleFilterOptionen() {
+  fuelleGruppenOptionen();
   const setze = (sel, werte, aktuell) => {
     const el = $(sel);
     const erste = el.querySelector('option').outerHTML;
@@ -298,14 +307,14 @@ function berechneBenachrichtigungen() {
   for (const g of daten.devices) {
     for (const f of faelligkeiten(g)) {
       if (f.tage < 0) {
-        liste.push({ id: g.id, icon: '🔴', text: `${g.name}: ${f.art} seit ${-f.tage} Tagen überfällig` });
+        liste.push({ id: g.id, icon: '🔴', text: t('notif.ueberfaellig', { geraet: g.name, art: f.art, n: -f.tage }) });
       } else if (f.tage <= WARTUNG_VORLAUF_TAGE && g.status !== 'ausser_betrieb') {
-        liste.push({ id: g.id, icon: '🟡', text: `${g.name}: ${f.art} fällig in ${f.tage} Tagen (${formatDatum(f.datum)})` });
+        liste.push({ id: g.id, icon: '🟡', text: t('notif.faellig', { geraet: g.name, art: f.art, n: f.tage, datum: formatDatum(f.datum) }) });
       }
     }
     const dt = defektTage(g);
     if (dt !== null && dt >= DEFEKT_ALARM_TAGE) {
-      liste.push({ id: g.id, icon: '⚠️', text: `${g.name}: seit ${dt} Tagen defekt – bitte Service-Status prüfen` });
+      liste.push({ id: g.id, icon: '⚠️', text: t('notif.defekt', { geraet: g.name, n: dt }) });
     }
   }
   return liste;
@@ -318,7 +327,7 @@ function renderBenachrichtigungen() {
   badge.textContent = liste.length;
   $('#notif-panel').innerHTML = liste.length
     ? liste.map((n) => `<div class="notif-item" data-id="${n.id}"><span class="n-icon">${n.icon}</span>${esc(n.text)}</div>`).join('')
-    : '<div class="notif-empty">Keine offenen Hinweise 🎉</div>';
+    : `<div class="notif-empty">${t('notif.keine')}</div>`;
   $$('#notif-panel .notif-item').forEach((el) => el.addEventListener('click', () => {
     $('#notif-panel').classList.add('hidden');
     oeffneDetail(Number(el.dataset.id));
@@ -339,24 +348,16 @@ function systemEintrag(g, text) {
  * vollautomatischer Versand bräuchte ein Backend, siehe README).
  */
 function serviceMailLink(g) {
-  const betreff = `Störungsmeldung: ${g.name}${g.model ? ' (' + g.model + ')' : ''}, SN ${g.serial || '–'}`;
   const dt = defektTage(g);
-  const body = [
-    'Sehr geehrte Damen und Herren,',
-    '',
-    'wir melden eine Störung an folgendem Gerät:',
-    '',
-    `Gerät:          ${g.name} – ${g.manufacturer} ${g.model || ''}`,
-    `Seriennummer:   ${g.serial || '–'}`,
-    `Inventarnummer: ${g.inventoryNo || '–'}`,
-    `Standort:       ${g.location}${g.room ? ', Raum ' + g.room : ''}${g.department ? ' (' + g.department + ')' : ''}`,
-    `Defekt seit:    ${formatDatum(g.defectSince)}${dt !== null ? ' (' + dt + ' Tag' + (dt === 1 ? '' : 'e') + ')' : ''}`,
-    '',
-    'Bitte melden Sie sich zur Terminabstimmung.',
-    '',
-    'Mit freundlichen Grüßen',
-    nutzer ? nutzer.name : '',
-  ].join('\n');
+  const betreff = t('mail.serviceBetreff', { geraet: `${g.name}${g.model ? ' (' + g.model + ')' : ''}`, sn: g.serial || '–' });
+  const body = t('mail.serviceText', {
+    geraet: `${g.name} – ${g.manufacturer} ${g.model || ''}`,
+    sn: g.serial || '–',
+    inv: g.inventoryNo || '–',
+    standort: `${g.location}${g.room ? ', ' + t('zelle.raum') + ' ' + g.room : ''}${g.department ? ' (' + g.department + ')' : ''}`,
+    seit: `${formatDatum(g.defectSince)}${dt !== null ? ' (' + dt + ' d)' : ''}`,
+    name: nutzer ? nutzer.name : '',
+  });
   return `mailto:${g.distEmail}?subject=${encodeURIComponent(betreff)}&body=${encodeURIComponent(body)}`;
 }
 
@@ -369,19 +370,19 @@ function oeffneDetail(id) {
 function renderDetail() {
   const g = findeGeraet(zustand.offenesGeraet);
   if (!g) return;
-  const st = STATUS_BADGE[effektiverStatus(g)];
+  const st = statusInfo(effektiverStatus(g));
   const dt = defektTage(g);
   $('#detail-title').innerHTML = `${esc(g.name)} <span class="badge ${st.klasse}">${st.text}</span>`;
 
   const aktionen = [];
-  if (g.status !== 'defekt') aktionen.push('<button class="btn btn-danger btn-status" data-aktion="defekt">⚠ Defekt melden</button>');
-  if (g.status === 'defekt') aktionen.push('<button class="btn btn-status" data-aktion="repariert">✔ Repariert / wieder funktionsfähig</button>');
-  if (g.status === 'defekt' && g.distEmail) aktionen.push(`<a class="btn btn-status" id="btn-service-mail" href="${serviceMailLink(g)}">✉ Service kontaktieren</a>`);
-  if (g.status !== 'ausser_betrieb') aktionen.push('<button class="btn btn-status" data-aktion="ausser_betrieb">⏸ Außer Betrieb setzen</button>');
-  else aktionen.push('<button class="btn btn-status" data-aktion="in_betrieb">▶ Wieder in Betrieb nehmen</button>');
+  if (g.status !== 'defekt') aktionen.push(`<button class="btn btn-danger btn-status" data-aktion="defekt">${t('aktion.defekt')}</button>`);
+  if (g.status === 'defekt') aktionen.push(`<button class="btn btn-status" data-aktion="repariert">${t('aktion.repariert')}</button>`);
+  if (g.status === 'defekt' && g.distEmail) aktionen.push(`<a class="btn btn-status" id="btn-service-mail" href="${serviceMailLink(g)}">${t('aktion.service')}</a>`);
+  if (g.status !== 'ausser_betrieb') aktionen.push(`<button class="btn btn-status" data-aktion="ausser_betrieb">${t('aktion.ausser')}</button>`);
+  else aktionen.push(`<button class="btn btn-status" data-aktion="in_betrieb">${t('aktion.inBetrieb')}</button>`);
   if (istAdmin()) {
-    aktionen.push('<button class="btn btn-status" data-aktion="bearbeiten">✏ Bearbeiten</button>');
-    aktionen.push('<button class="btn btn-danger btn-status" data-aktion="loeschen">🗑 Löschen</button>');
+    aktionen.push(`<button class="btn btn-status" data-aktion="bearbeiten">${t('aktion.bearbeiten')}</button>`);
+    aktionen.push(`<button class="btn btn-danger btn-status" data-aktion="loeschen">${t('aktion.loeschen')}</button>`);
   }
 
   const logSortiert = [...g.log].sort((a, b) => b.ts - a.ts); // neueste zuerst
@@ -391,64 +392,64 @@ function renderDetail() {
     const nd = pruefungNaechste(p);
     const tage = nd ? tageDiff(isoDatum(heute()), nd) : null;
     const status = nd
-      ? (tage < 0 ? `<span class="maint-overdue">überfällig seit ${-tage} Tagen</span>`
-        : tage <= WARTUNG_VORLAUF_TAGE ? `<span class="maint-soon">in ${tage} Tagen</span>`
-        : `in ${tage} Tagen`)
-      : '<small>noch nie durchgeführt</small>';
+      ? (tage < 0 ? `<span class="maint-overdue">${t('zelle.ueberfaelligSeit', { n: -tage })}</span>`
+        : tage <= WARTUNG_VORLAUF_TAGE ? `<span class="maint-soon">${t('zelle.inTagen', { n: tage })}</span>`
+        : t('zelle.inTagen', { n: tage }))
+      : `<small>${t('pruef.nie')}</small>`;
     return `<tr>
       <td><strong>${esc(p.art)}</strong></td>
-      <td>alle ${p.intervall} Monate</td>
+      <td>${t('pruef.alleMonate', { n: p.intervall })}</td>
       <td>${formatDatum(p.letzte)}</td>
       <td>${nd ? formatDatum(nd) : '–'}<br><small>${status}</small></td>
-      <td><button type="button" class="btn btn-sm pruef-done" data-pruef="${i}">✓ durchgeführt</button></td>
+      <td><button type="button" class="btn btn-sm pruef-done" data-pruef="${i}">${t('pruef.done')}</button></td>
     </tr>`;
   }).join('');
 
   $('#detail-body').innerHTML = `
     <dl class="detail-grid">
-      <div><dt>Gerätetyp</dt><dd>${esc(g.category)}</dd></div>
-      <div><dt>Hersteller / Modell</dt><dd>${esc(g.manufacturer)} ${esc(g.model || '')}</dd></div>
-      <div><dt>Seriennummer</dt><dd>${esc(g.serial || '–')}</dd></div>
-      <div><dt>Inventarnummer</dt><dd>${esc(g.inventoryNo || '–')}</dd></div>
-      <div><dt>Standort</dt><dd>${esc(g.location)}${g.room ? ' · Raum ' + esc(g.room) : ''}</dd></div>
-      <div><dt>Abteilung</dt><dd>${esc(g.department)}${g.team ? ' · ' + esc(g.team) : ''}</dd></div>
-      <div><dt>Anschaffung</dt><dd>${formatDatum(g.purchaseDate)}</dd></div>
-      <div><dt>Garantieende</dt><dd>${formatDatum(g.warrantyEnd)}</dd></div>
-      <div><dt>Distributor</dt><dd>${esc(g.distributor || '–')}</dd></div>
-      <div><dt>Service-Kontakt (Technik)</dt><dd>${g.distContact ? esc(g.distContact) + ' · ' : ''}${esc(g.distPhone || '–')}${g.distEmail ? ' · <a href="mailto:' + esc(g.distEmail) + '">' + esc(g.distEmail) + '</a>' : ''}</dd></div>
-      <div><dt>Vertrieb / Außendienst</dt><dd>${g.salesName || g.salesPhone || g.salesEmail ? `${esc(g.salesName || '')}${g.salesPhone ? ' · ' + esc(g.salesPhone) : ''}${g.salesEmail ? ' · <a href="mailto:' + esc(g.salesEmail) + '">' + esc(g.salesEmail) + '</a>' : ''}` : '–'}</dd></div>
-      <div><dt>Netzwerkadresse</dt><dd>${g.networkAddress
+      <div><dt>${t('dt.geraetetyp')}</dt><dd>${esc(g.category)}</dd></div>
+      <div><dt>${t('dt.herstellerModell')}</dt><dd>${esc(g.manufacturer)} ${esc(g.model || '')}</dd></div>
+      <div><dt>${t('dt.seriennummer')}</dt><dd>${esc(g.serial || '–')}</dd></div>
+      <div><dt>${t('dt.inventarnummer')}</dt><dd>${esc(g.inventoryNo || '–')}</dd></div>
+      <div><dt>${t('dt.standort')}</dt><dd>${esc(g.location)}${g.room ? ' · ' + t('zelle.raum') + ' ' + esc(g.room) : ''}</dd></div>
+      <div><dt>${t('dt.abteilung')}</dt><dd>${esc(g.department)}${g.team ? ' · ' + esc(g.team) : ''}</dd></div>
+      <div><dt>${t('dt.anschaffung')}</dt><dd>${formatDatum(g.purchaseDate)}</dd></div>
+      <div><dt>${t('dt.garantie')}</dt><dd>${formatDatum(g.warrantyEnd)}</dd></div>
+      <div><dt>${t('dt.distributor')}</dt><dd>${esc(g.distributor || '–')}</dd></div>
+      <div><dt>${t('dt.serviceKontakt')}</dt><dd>${g.distContact ? esc(g.distContact) + ' · ' : ''}${esc(g.distPhone || '–')}${g.distEmail ? ' · <a href="mailto:' + esc(g.distEmail) + '">' + esc(g.distEmail) + '</a>' : ''}</dd></div>
+      <div><dt>${t('dt.vertrieb')}</dt><dd>${g.salesName || g.salesPhone || g.salesEmail ? `${esc(g.salesName || '')}${g.salesPhone ? ' · ' + esc(g.salesPhone) : ''}${g.salesEmail ? ' · <a href="mailto:' + esc(g.salesEmail) + '">' + esc(g.salesEmail) + '</a>' : ''}` : '–'}</dd></div>
+      <div><dt>${t('dt.netzwerk')}</dt><dd>${g.networkAddress
         ? esc(g.networkAddress) + (MONITORING_ENDPOINT
-          ? ' <button type="button" class="btn btn-sm" id="btn-netcheck">Online-Status abfragen</button>'
-          : ' <small>· Online-Abfrage vorbereitet (Monitoring-Dienst noch nicht angebunden)</small>')
+          ? ` <button type="button" class="btn btn-sm" id="btn-netcheck">${t('dt.netzwerkAbfrage')}</button>`
+          : ` <small>${t('dt.netzwerkHinweis')}</small>`)
         : '–'}</dd></div>
-      ${dt !== null ? `<div><dt>Ausfalldauer</dt><dd class="defect-days">defekt seit ${dt === 0 ? 'heute' : dt + ' Tag' + (dt === 1 ? '' : 'en')} (gemeldet ${formatDatum(g.defectSince)})</dd></div>` : ''}
-      <div><dt>Bisherige Defekte</dt><dd>${defektEreignisse(g).length}${gesamtkosten ? ' · Reparaturkosten gesamt: ' + eur(gesamtkosten) : ''}</dd></div>
+      ${dt !== null ? `<div><dt>${t('dt.ausfalldauer')}</dt><dd class="defect-days">${t('dt.defektSeit', { seit: dt === 0 ? t('zelle.seitHeute') : t('zelle.seitTagen', { n: dt }), datum: formatDatum(g.defectSince) })}</dd></div>` : ''}
+      <div><dt>${t('dt.defekte')}</dt><dd>${defektEreignisse(g).length}${gesamtkosten ? ' · ' + t('dt.kostenGesamt') + ': ' + geld(gesamtkosten) : ''}</dd></div>
       ${daten.customFields.map((f) => `<div><dt>${esc(f.label)}</dt><dd>${formatCustomWert(f, (g.custom || {})[f.id])}</dd></div>`).join('')}
     </dl>
     <div class="detail-section pruef-section">
-      <h3>Prüfungen & Wartungen (MPBetreibV)</h3>
+      <h3>${t('pruef.titel')}</h3>
       ${pruefZeilen
         ? `<div class="table-wrap"><table class="pruef-table">
-            <thead><tr><th>Prüfart</th><th>Intervall</th><th>Zuletzt</th><th>Nächste Fälligkeit</th><th></th></tr></thead>
+            <thead><tr><th>${t('pruef.art')}</th><th>${t('pruef.intervall')}</th><th>${t('pruef.zuletzt')}</th><th>${t('pruef.naechste')}</th><th></th></tr></thead>
             <tbody>${pruefZeilen}</tbody></table></div>`
-        : '<p><small>Keine Prüfzyklen hinterlegt – über „Bearbeiten" ergänzen.</small></p>'}
+        : `<p><small>${t('pruef.keine')}</small></p>`}
     </div>
     ${dokumenteHtml(g)}
     ${belegungHtml(g)}
     <div class="detail-actions">${aktionen.join('')}</div>
     <div class="detail-section">
-      <h3>Verlauf & Kommentare</h3>
+      <h3>${t('verlauf.titel')}</h3>
       <form class="chat-form" id="chat-form">
-        <input type="text" id="chat-input" placeholder="Update eintragen, z. B. „Techniker kontaktiert, kommt in 24 h“ …" maxlength="500">
-        <button type="submit" class="btn btn-primary">Senden</button>
+        <input type="text" id="chat-input" placeholder="${esc(t('verlauf.ph'))}" maxlength="500">
+        <button type="submit" class="btn btn-primary">${t('verlauf.senden')}</button>
       </form>
       <div class="log-list">
         ${logSortiert.length ? logSortiert.map((e) => `
           <div class="log-entry ${e.type === 'system' ? 'log-system' : ''}">
             <div class="log-meta"><strong>${esc(e.author)}</strong> · ${formatZeit(e.ts)}</div>
             <div>${esc(e.text)}</div>
-          </div>`).join('') : '<small>Noch keine Einträge.</small>'}
+          </div>`).join('') : `<small>${t('verlauf.keine')}</small>`}
       </div>
     </div>`;
 
@@ -470,13 +471,13 @@ function renderDetail() {
   $$('#detail-body .dok-open').forEach((a) => a.addEventListener('click', (ev) => {
     ev.preventDefault();
     const d = (g.dokumente || []).find((x) => x.id === a.closest('.dok-row').dataset.dok);
-    if (d) oeffneDokument(d).catch(() => alert('Dokument konnte nicht geöffnet werden.'));
+    if (d) oeffneDokument(d).catch(() => alert(t('dok.oeffnenFehler')));
   }));
   $$('#detail-body .dok-del').forEach((btn) => btn.addEventListener('click', () => {
     const d = (g.dokumente || []).find((x) => x.id === btn.closest('.dok-row').dataset.dok);
-    if (!d || !confirm(`Dokument „${d.name}“ entfernen?`)) return;
+    if (!d || !confirm(t('dok.entfernenFrage', { name: d.name }))) return;
     g.dokumente = g.dokumente.filter((x) => x.id !== d.id);
-    systemEintrag(g, `Dokument entfernt: ${d.name} (${nutzer.name}).`);
+    systemEintrag(g, t('sys.dokEntfernt', { dok: d.name, name: nutzer.name }));
     speichereDaten(daten);
     renderDetail();
   }));
@@ -484,9 +485,9 @@ function renderDetail() {
     ev.preventDefault();
     const url = $('#dok-url').value.trim();
     const name = $('#dok-name').value.trim() || url;
-    if (!url) { alert('Bitte einen Link eintragen – oder „Datei" für einen Upload nutzen.'); return; }
+    if (!url) { alert(t('dok.linkFehlt')); return; }
     g.dokumente.push({ id: neueId(), kategorie: $('#dok-kategorie').value, name, typ: 'link', url });
-    systemEintrag(g, `Dokument verlinkt: ${name} (${nutzer.name}).`);
+    systemEintrag(g, t('sys.dokLink', { dok: name, name: nutzer.name }));
     speichereDaten(daten);
     renderDetail();
   });
@@ -495,14 +496,14 @@ function renderDetail() {
     const datei = $('#dok-datei').files[0];
     if (!datei) return;
     if (datei.size > DOK_MAX_BYTES) {
-      alert('Datei ist größer als 2 MB. Bitte große Dokumente als Link hinterlegen (Netzlaufwerk/Intranet) – echte Uploads folgen mit dem Backend.');
+      alert(t('dok.zuGross'));
       return;
     }
     const leser = new FileReader();
     leser.onload = () => {
       const name = $('#dok-name').value.trim() || datei.name;
       g.dokumente.push({ id: neueId(), kategorie: $('#dok-kategorie').value, name, typ: 'datei', url: leser.result, groesse: datei.size });
-      systemEintrag(g, `Dokument hochgeladen: ${name} (${nutzer.name}).`);
+      systemEintrag(g, t('sys.dokUpload', { dok: name, name: nutzer.name }));
       speichereDaten(daten);
       renderDetail();
     };
@@ -515,23 +516,23 @@ function renderDetail() {
     const von = $('#beleg-von').value, bis = $('#beleg-bis').value;
     const zweck = $('#beleg-zweck').value.trim();
     if (!von || !bis || !zweck) return;
-    if (bis <= von) { alert('Das Ende der Reservierung muss nach dem Beginn liegen.'); return; }
+    if (bis <= von) { alert(t('beleg.endeNachBeginn')); return; }
     const konflikt = belegungsKonflikt(g, von, bis, null);
     if (konflikt) {
-      alert(`Konflikt: Das Gerät ist in diesem Zeitraum bereits reserviert –\n${formatBelegZeit(konflikt)} · ${konflikt.wer} · ${konflikt.zweck}`);
+      alert(t('beleg.konflikt', { details: `${formatBelegZeit(konflikt)} · ${konflikt.wer} · ${konflikt.zweck}` }));
       return;
     }
     g.belegungen.push({ id: neueId(), von, bis, wer: nutzer.name, zweck });
-    systemEintrag(g, `Reservierung angelegt: ${formatBelegZeit({ von, bis })} – ${zweck} (${nutzer.name}).`);
+    systemEintrag(g, t('sys.reserviert', { zeit: formatBelegZeit({ von, bis }), zweck, name: nutzer.name }));
     speichereDaten(daten);
     renderDetail();
     renderAlles(false);
   });
   $$('#detail-body .beleg-del').forEach((btn) => btn.addEventListener('click', () => {
     const b = (g.belegungen || []).find((x) => x.id === btn.closest('.beleg-row').dataset.beleg);
-    if (!b || !confirm(`Reservierung „${b.zweck}“ (${formatBelegZeit(b)}) stornieren?`)) return;
+    if (!b || !confirm(t('beleg.stornoFrage', { zweck: b.zweck, zeit: formatBelegZeit(b) }))) return;
     g.belegungen = g.belegungen.filter((x) => x.id !== b.id);
-    systemEintrag(g, `Reservierung storniert: ${formatBelegZeit(b)} – ${b.zweck} (${nutzer.name}).`);
+    systemEintrag(g, t('sys.storniert', { zeit: formatBelegZeit(b), zweck: b.zweck, name: nutzer.name }));
     speichereDaten(daten);
     renderDetail();
     renderAlles(false);
@@ -542,7 +543,7 @@ function renderDetail() {
     const p = g.pruefungen[Number(btn.dataset.pruef)];
     if (!p) return;
     p.letzte = isoDatum(heute());
-    systemEintrag(g, `${p.art} durchgeführt (${nutzer.name}). Nächste Fälligkeit: ${formatDatum(pruefungNaechste(p))}.`);
+    systemEintrag(g, t('sys.pruefung', { art: p.art, name: nutzer.name, datum: formatDatum(pruefungNaechste(p)) }));
     speichereDaten(daten);
     renderDetail();
     renderAlles(false);
@@ -551,7 +552,7 @@ function renderDetail() {
   // Störungs-E-Mail: Klick im Verlauf dokumentieren (mailto öffnet das Mailprogramm)
   const mailBtn = $('#btn-service-mail');
   if (mailBtn) mailBtn.addEventListener('click', () => {
-    systemEintrag(g, `Störungs-E-Mail an ${g.distEmail} vorbereitet (${nutzer.name}).`);
+    systemEintrag(g, t('sys.serviceMail', { email: g.distEmail, name: nutzer.name }));
     speichereDaten(daten);
     setTimeout(renderDetail, 300);
   });
@@ -560,34 +561,34 @@ function renderDetail() {
   const netBtn = $('#btn-netcheck');
   if (netBtn) netBtn.addEventListener('click', async () => {
     netBtn.disabled = true;
-    netBtn.textContent = 'Frage ab …';
+    netBtn.textContent = t('monitor.laeuft');
     try {
       const s = await frageGeraeteStatusAb(g);
       alert(s.erreichbar === null
-        ? 'Monitoring nicht konfiguriert.'
-        : `${g.name} ist derzeit ${s.erreichbar ? 'ERREICHBAR' : 'NICHT ERREICHBAR'} (geprüft: ${s.geprueft ? formatZeit(new Date(s.geprueft).getTime()) : 'jetzt'}).`);
+        ? t('monitor.nicht')
+        : t('monitor.status', { geraet: g.name, status: s.erreichbar ? t('monitor.erreichbar') : t('monitor.nichtErreichbar'), zeit: s.geprueft ? formatZeit(new Date(s.geprueft).getTime()) : '–' }));
     } catch (e) {
-      alert('Abfrage fehlgeschlagen: ' + e.message);
+      alert(t('monitor.fehler', { fehler: e.message }));
     }
     renderDetail();
   });
 }
 
 function statusAktion(g, aktion) {
-  const alterStatus = STATUS_BADGE[effektiverStatus(g)].text;
+  const alterStatus = statusInfo(effektiverStatus(g)).text;
   switch (aktion) {
     case 'defekt': {
-      const grund = prompt('Kurze Beschreibung des Defekts:');
+      const grund = prompt(t('dialog.defektGrund'));
       if (grund === null) return;
       g.status = 'defekt';
       g.defectSince = isoDatum(heute());
-      systemEintrag(g, `Status geändert: ${alterStatus} → Defekt (${nutzer.name}).${grund ? ' Grund: ' + grund : ''}`);
+      systemEintrag(g, t('sys.defekt', { alt: alterStatus, name: nutzer.name }) + (grund ? ' ' + t('sys.grund', { grund }) : ''));
       break;
     }
     case 'repariert': {
       // Reparaturkosten optional erfassen (fließen in die Statistik ein)
       let kosten = null;
-      const eingabe = prompt('Reparaturkosten in € (optional, leer lassen wenn unbekannt/kostenfrei):');
+      const eingabe = prompt(t('dialog.kosten'));
       if (eingabe) {
         const zahl = parseFloat(eingabe.replace(/\./g, '').replace(',', '.'));
         if (!isNaN(zahl) && zahl >= 0) kosten = zahl;
@@ -599,7 +600,7 @@ function statusAktion(g, aktion) {
       const dauer = g.defectSince ? tageDiff(g.defectSince, Date.now()) : 0;
       g.status = 'ok';
       g.defectSince = null;
-      systemEintrag(g, `Status geändert: Defekt → Funktionsfähig (${nutzer.name}). Ausfalldauer: ${dauer} Tag${dauer === 1 ? '' : 'e'}.${kosten !== null ? ' Reparaturkosten: ' + eur(kosten) + '.' : ''}`);
+      systemEintrag(g, t('sys.repariert', { name: nutzer.name, dauer }) + (kosten !== null ? ' ' + t('sys.kosten', { betrag: geld(kosten) }) : ''));
       break;
     }
     case 'ausser_betrieb': {
@@ -609,12 +610,12 @@ function statusAktion(g, aktion) {
         g.defectSince = null;
       }
       g.status = 'ausser_betrieb';
-      systemEintrag(g, `Status geändert: ${alterStatus} → Außer Betrieb (${nutzer.name}).`);
+      systemEintrag(g, t('sys.ausser', { alt: alterStatus, name: nutzer.name }));
       break;
     }
     case 'in_betrieb': {
       g.status = 'ok';
-      systemEintrag(g, `Status geändert: Außer Betrieb → Funktionsfähig (${nutzer.name}).`);
+      systemEintrag(g, t('sys.inBetrieb', { name: nutzer.name }));
       break;
     }
     case 'bearbeiten': {
@@ -623,7 +624,7 @@ function statusAktion(g, aktion) {
       return;
     }
     case 'loeschen': {
-      if (!confirm(`Gerät „${g.name}“ wirklich löschen? Die gesamte Historie geht verloren.`)) return;
+      if (!confirm(t('dialog.loeschen', { name: g.name }))) return;
       daten.devices = daten.devices.filter((x) => x.id !== g.id);
       speichereDaten(daten);
       $('#modal-detail').classList.add('hidden');
@@ -638,7 +639,7 @@ function statusAktion(g, aktion) {
 
 /* ===================== Eigene Felder (Admin) ===================== */
 
-const FELD_TYP_NAME = { text: 'Text', number: 'Zahl', date: 'Datum' };
+function feldTypName(typ) { return { text: t('felder.typText'), number: t('felder.typZahl'), date: t('felder.typDatum') }[typ] || typ; }
 
 function renderFelderListe() {
   const liste = daten.customFields;
@@ -646,15 +647,15 @@ function renderFelderListe() {
     ? liste.map((f) => `
       <div class="field-row" data-id="${esc(f.id)}">
         <span class="field-label">${esc(f.label)}</span>
-        <span class="field-type">${FELD_TYP_NAME[f.type] || f.type}</span>
-        <button type="button" class="btn btn-sm btn-danger field-del">Entfernen</button>
+        <span class="field-type">${feldTypName(f.type)}</span>
+        <button type="button" class="btn btn-sm btn-danger field-del">${t('felder.entfernen')}</button>
       </div>`).join('')
-    : '<p class="empty-hint">Noch keine eigenen Felder definiert.</p>';
+    : `<p class="empty-hint">${t('felder.keine')}</p>`;
 
   $$('#fields-list .field-del').forEach((btn) => btn.addEventListener('click', () => {
     const id = btn.closest('.field-row').dataset.id;
     const f = daten.customFields.find((x) => x.id === id);
-    if (!confirm(`Feld „${f.label}“ entfernen?\nBereits eingetragene Werte bleiben gespeichert, werden aber nicht mehr angezeigt.`)) return;
+    if (!confirm(t('felder.entfernenFrage', { label: f.label }))) return;
     daten.customFields = daten.customFields.filter((x) => x.id !== id);
     speichereDaten(daten);
     renderFelderListe();
@@ -671,10 +672,10 @@ function formatCustomWert(feld, wert) {
 /** Eine Zeile des Prüfarten-Editors erzeugen. */
 function pruefEditorZeile(p) {
   return `<div class="pruef-row">
-    <input type="text" class="pe-art" list="dl-pruefart" placeholder="Prüfart" value="${esc(p?.art || '')}" maxlength="30">
-    <input type="number" class="pe-intervall" min="1" max="120" placeholder="Monate" value="${p?.intervall || ''}">
-    <input type="date" class="pe-letzte" title="Zuletzt durchgeführt" value="${p?.letzte || ''}">
-    <button type="button" class="btn btn-sm pe-del" title="Prüfart entfernen">✕</button>
+    <input type="text" class="pe-art" list="dl-pruefart" placeholder="${esc(t('pruef.artPh'))}" value="${esc(p?.art || '')}" maxlength="30">
+    <input type="number" class="pe-intervall" min="1" max="120" placeholder="${esc(t('pruef.monatePh'))}" value="${p?.intervall || ''}">
+    <input type="date" class="pe-letzte" title="${esc(t('pruef.zuletzt'))}" value="${p?.letzte || ''}">
+    <button type="button" class="btn btn-sm pe-del" title="${esc(t('pruef.entfernen'))}">✕</button>
   </div>`;
 }
 
@@ -694,7 +695,7 @@ function samplePruefungen() {
 }
 
 function oeffneFormular(g) {
-  $('#form-title').textContent = g ? 'Gerät bearbeiten' : 'Neues Gerät';
+  $('#form-title').textContent = g ? t('form.titelBearbeiten') : t('form.titelNeu');
   $('#f-id').value = g ? g.id : '';
   $('#f-name').value = g?.name || '';
   $('#f-category').value = g?.category || '';
@@ -756,13 +757,13 @@ function speichereFormular(ev) {
   if (id) {
     const g = findeGeraet(id);
     Object.assign(g, felder);
-    systemEintrag(g, `Stammdaten bearbeitet (${nutzer.name}).`);
+    systemEintrag(g, t('sys.bearbeitet', { name: nutzer.name }));
   } else {
     const g = {
       id: daten.nextId++, ...felder,
       status: 'ok', defectSince: null, defectHistory: [], log: [],
     };
-    systemEintrag(g, `Gerät angelegt (${nutzer.name}).`);
+    systemEintrag(g, t('sys.angelegt', { name: nutzer.name }));
     daten.devices.push(g);
   }
   speichereDaten(daten);
@@ -794,64 +795,63 @@ function renderStatistik() {
     ? abgeschlossen.reduce((s, e) => s + e.dauerTage, 0) / abgeschlossen.length : 0;
 
   $('#stat-tiles').innerHTML = `
-    <div class="tile"><div class="tile-num">${geraete.length}</div><div class="tile-label">Geräte im Filter</div></div>
-    <div class="tile t-red"><div class="tile-num">${events.length}</div><div class="tile-label">Defekte im Zeitraum</div></div>
-    <div class="tile t-yellow"><div class="tile-num">${ausfalltage}</div><div class="tile-label">Ausfalltage gesamt</div></div>
-    <div class="tile"><div class="tile-num">${f1(mittlereRep)}</div><div class="tile-label">Ø Reparaturzeit (Tage)</div></div>
-    <div class="tile t-red"><div class="tile-num">${eur(kostenGesamt)}</div><div class="tile-label">Reparaturkosten im Zeitraum</div></div>`;
+    <div class="tile"><div class="tile-num">${geraete.length}</div><div class="tile-label">${t('stat.geraeteImFilter')}</div></div>
+    <div class="tile t-red"><div class="tile-num">${events.length}</div><div class="tile-label">${t('stat.defekteImZeitraum')}</div></div>
+    <div class="tile t-yellow"><div class="tile-num">${ausfalltage}</div><div class="tile-label">${t('stat.ausfalltageGesamt')}</div></div>
+    <div class="tile"><div class="tile-num">${f1(mittlereRep)}</div><div class="tile-label">${t('stat.oRep')}</div></div>
+    <div class="tile t-red"><div class="tile-num">${geld(kostenGesamt)}</div><div class="tile-label">${t('stat.kostenZeitraum')}</div></div>`;
 
   balkendiagramm($('#chart-monat'), statMonatsverlauf(daten.devices, filter));
 
   // --- Hersteller ---
   const hs = statHersteller(daten.devices, filter);
   $('#table-hersteller').innerHTML = `
-    <thead><tr><th>Hersteller</th><th class="num">Geräte</th><th class="num">Defekte</th>
-    <th class="num">Defekte / Gerät</th><th class="num">Defekte / Betriebsjahr</th>
-    <th class="num">Ausfalltage</th><th class="num">Ø Ausfalldauer</th><th class="num">Reparaturkosten</th></tr></thead><tbody>` +
+    <thead><tr><th>${t('th.hersteller')}</th><th class="num">${t('stat.geraete')}</th><th class="num">${t('stat.defekte')}</th>
+    <th class="num">${t('stat.defekteProGeraet')}</th><th class="num">${t('stat.defekteProJahr')}</th>
+    <th class="num">${t('stat.ausfalltage')}</th><th class="num">${t('stat.oAusfall')}</th><th class="num">${t('stat.kosten')}</th></tr></thead><tbody>` +
     hs.map((s, i) => `<tr>
       <td class="${i === 0 && s.defekte > 0 ? 'rank-1' : ''}">${esc(s.hersteller)}</td>
       <td class="num">${s.geraete}</td><td class="num">${s.defekte}</td>
       <td class="num">${f1(s.defekteProGeraet)}</td><td class="num">${f1(s.defekteProBetriebsjahr)}</td>
-      <td class="num">${s.ausfalltage}</td><td class="num">${f1(s.mittlereAusfalldauer)} Tage</td>
-      <td class="num">${eur(s.kosten)}</td>
+      <td class="num">${s.ausfalltage}</td><td class="num">${t('stat.tage', { n: f1(s.mittlereAusfalldauer) })}</td>
+      <td class="num">${geld(s.kosten)}</td>
     </tr>`).join('') + '</tbody>';
 
   // --- Ausfallquote nach Dimension (Standort/Abteilung/Team/Raum) ---
-  const DIM_NAMEN = { location: 'Standort', department: 'Abteilung', team: 'Team', room: 'Raum' };
   const dim = $('#stat-dimension').value;
-  $('#dim-titel').textContent = DIM_NAMEN[dim];
+  $('#dim-titel').textContent = t('dim.' + dim);
   const ds2 = statDimension(daten.devices, filter, dim);
   $('#table-dimension').innerHTML = `
-    <thead><tr><th>${DIM_NAMEN[dim]}</th><th class="num">Geräte</th><th class="num">Defekte</th>
-    <th class="num">Defekte / Gerät</th><th class="num">Defekte / Betriebsjahr</th>
-    <th class="num">Ausfalltage</th><th class="num">Ø Ausfalldauer</th><th class="num">Reparaturkosten</th></tr></thead><tbody>` +
+    <thead><tr><th>${t('dim.' + dim)}</th><th class="num">${t('stat.geraete')}</th><th class="num">${t('stat.defekte')}</th>
+    <th class="num">${t('stat.defekteProGeraet')}</th><th class="num">${t('stat.defekteProJahr')}</th>
+    <th class="num">${t('stat.ausfalltage')}</th><th class="num">${t('stat.oAusfall')}</th><th class="num">${t('stat.kosten')}</th></tr></thead><tbody>` +
     ds2.map((s, i) => `<tr>
       <td class="${i === 0 && s.defekte > 0 ? 'rank-1' : ''}">${esc(s.name)}</td>
       <td class="num">${s.geraete}</td><td class="num">${s.defekte}</td>
       <td class="num">${f1(s.defekteProGeraet)}</td><td class="num">${f1(s.defekteProBetriebsjahr)}</td>
-      <td class="num">${s.ausfalltage}</td><td class="num">${f1(s.mittlereAusfalldauer)} Tage</td>
-      <td class="num">${eur(s.kosten)}</td>
+      <td class="num">${s.ausfalltage}</td><td class="num">${t('stat.tage', { n: f1(s.mittlereAusfalldauer) })}</td>
+      <td class="num">${geld(s.kosten)}</td>
     </tr>`).join('') + '</tbody>';
 
   // --- Top-Ausfallgeräte ---
   const gs = statGeraete(daten.devices, filter);
   $('#table-geraete').innerHTML = `
-    <thead><tr><th>#</th><th>Gerät</th><th>Hersteller</th><th>Standort</th>
-    <th class="num">Defekte</th><th class="num">Ausfalltage</th><th class="num">Reparaturkosten</th><th class="num">Alter (Jahre)</th><th class="num">Defekte / Betriebsjahr</th></tr></thead><tbody>` +
+    <thead><tr><th>#</th><th>${t('th.geraet')}</th><th>${t('th.hersteller')}</th><th>${t('th.standort')}</th>
+    <th class="num">${t('stat.defekte')}</th><th class="num">${t('stat.ausfalltage')}</th><th class="num">${t('stat.kosten')}</th><th class="num">${t('stat.alter')}</th><th class="num">${t('stat.defekteProJahr')}</th></tr></thead><tbody>` +
     (gs.length ? gs.map((r, i) => `<tr>
       <td class="${i === 0 ? 'rank-1' : ''}">${i + 1}</td>
       <td>${esc(r.geraet.name)}<br><small>${esc(r.geraet.model || '')} · ${esc(r.geraet.department)}</small></td>
       <td>${esc(r.geraet.manufacturer)}</td><td>${esc(r.geraet.location)}</td>
       <td class="num">${r.defekte}</td><td class="num">${r.ausfalltage}</td>
-      <td class="num">${eur(r.kosten)}</td>
+      <td class="num">${geld(r.kosten)}</td>
       <td class="num">${f1(r.alterJahre)}</td><td class="num">${f1(r.defekteProBetriebsjahr)}</td>
-    </tr>`).join('') : '<tr><td colspan="9"><small>Keine Defekte im gewählten Zeitraum.</small></td></tr>') + '</tbody>';
+    </tr>`).join('') : `<tr><td colspan="9"><small>${t('stat.keineDefekte')}</small></td></tr>`) + '</tbody>';
 
   // --- Gerätetypen ---
   const ts = statTypen(daten.devices, filter);
   $('#table-typen').innerHTML = `
-    <thead><tr><th>Gerätetyp</th><th>Hersteller</th><th class="num">Geräte</th>
-    <th class="num">Defekte</th><th class="num">Defekte / Gerät</th><th class="num">Ausfalltage</th></tr></thead><tbody>` +
+    <thead><tr><th>${t('dt.geraetetyp')}</th><th>${t('th.hersteller')}</th><th class="num">${t('stat.geraete')}</th>
+    <th class="num">${t('stat.defekte')}</th><th class="num">${t('stat.defekteProGeraet')}</th><th class="num">${t('stat.ausfalltage')}</th></tr></thead><tbody>` +
     ts.map((s) => `<tr>
       <td>${esc(s.kategorie)}</td><td>${esc(s.hersteller)}</td>
       <td class="num">${s.geraete}</td><td class="num">${s.defekte}</td>
@@ -861,52 +861,56 @@ function renderStatistik() {
   // --- Distributoren ---
   const ds = statDistributor(daten.devices, filter);
   $('#table-distributor').innerHTML = `
-    <thead><tr><th>Distributor</th><th class="num">Abgeschlossene Reparaturen</th>
-    <th class="num">Ø Reparaturzeit</th><th class="num">Reparaturtage gesamt</th></tr></thead><tbody>` +
+    <thead><tr><th>${t('th.distributor')}</th><th class="num">${t('stat.reparaturen')}</th>
+    <th class="num">${t('stat.oRepZeit')}</th><th class="num">${t('stat.repTage')}</th></tr></thead><tbody>` +
     (ds.length ? ds.map((s) => `<tr>
       <td>${esc(s.distributor)}</td><td class="num">${s.reparaturen}</td>
-      <td class="num">${f1(s.mittlereDauer)} Tage</td><td class="num">${s.tageGesamt}</td>
-    </tr>`).join('') : '<tr><td colspan="4"><small>Keine abgeschlossenen Reparaturen im Zeitraum.</small></td></tr>') + '</tbody>';
+      <td class="num">${t('stat.tage', { n: f1(s.mittlereDauer) })}</td><td class="num">${s.tageGesamt}</td>
+    </tr>`).join('') : `<tr><td colspan="4"><small>${t('stat.keineRep')}</small></td></tr>`) + '</tbody>';
 }
 
 function initCsvExporte() {
   $('#csv-hersteller').addEventListener('click', () => {
     const hs = statHersteller(daten.devices, statFilter());
     exportiereCSV('ausfallstatistik-hersteller.csv',
-      ['Hersteller', 'Geräte', 'Defekte', 'Defekte pro Gerät', 'Defekte pro Betriebsjahr', 'Ausfalltage', 'Mittlere Ausfalldauer (Tage)', 'Reparaturkosten (EUR)'],
+      [t('th.hersteller'), t('stat.geraete'), t('stat.defekte'), t('stat.defekteProGeraet'), t('stat.defekteProJahr'), t('stat.ausfalltage'), t('stat.oAusfall'), t('stat.kosten') + ' (' + WAEHRUNG + ')'],
       hs.map((s) => [s.hersteller, s.geraete, s.defekte, f1(s.defekteProGeraet), f1(s.defekteProBetriebsjahr), s.ausfalltage, f1(s.mittlereAusfalldauer), f1(s.kosten)]));
   });
   $('#csv-geraete').addEventListener('click', () => {
     const gs = statGeraete(daten.devices, statFilter());
     exportiereCSV('top-ausfallgeraete.csv',
-      ['Rang', 'Gerät', 'Modell', 'Hersteller', 'Standort', 'Abteilung', 'Defekte', 'Ausfalltage', 'Reparaturkosten (EUR)', 'Alter (Jahre)', 'Defekte pro Betriebsjahr'],
+      ['#', t('th.geraet'), t('form.modell'), t('th.hersteller'), t('th.standort'), t('th.abteilung'), t('stat.defekte'), t('stat.ausfalltage'), t('stat.kosten') + ' (' + WAEHRUNG + ')', t('stat.alter'), t('stat.defekteProJahr')],
       gs.map((r, i) => [i + 1, r.geraet.name, r.geraet.model, r.geraet.manufacturer, r.geraet.location, r.geraet.department, r.defekte, r.ausfalltage, f1(r.kosten), f1(r.alterJahre), f1(r.defekteProBetriebsjahr)]));
   });
   $('#csv-dimension').addEventListener('click', () => {
-    const DIM_NAMEN = { location: 'Standort', department: 'Abteilung', team: 'Team', room: 'Raum' };
     const dim = $('#stat-dimension').value;
     const ds2 = statDimension(daten.devices, statFilter(), dim);
-    exportiereCSV(`ausfallquote-${DIM_NAMEN[dim].toLowerCase()}.csv`,
-      [DIM_NAMEN[dim], 'Geräte', 'Defekte', 'Defekte pro Gerät', 'Defekte pro Betriebsjahr', 'Ausfalltage', 'Mittlere Ausfalldauer (Tage)', 'Reparaturkosten (EUR)'],
+    exportiereCSV(`ausfallquote-${dim}.csv`,
+      [t('dim.' + dim), t('stat.geraete'), t('stat.defekte'), t('stat.defekteProGeraet'), t('stat.defekteProJahr'), t('stat.ausfalltage'), t('stat.oAusfall'), t('stat.kosten') + ' (' + WAEHRUNG + ')'],
       ds2.map((s) => [s.name, s.geraete, s.defekte, f1(s.defekteProGeraet), f1(s.defekteProBetriebsjahr), s.ausfalltage, f1(s.mittlereAusfalldauer), f1(s.kosten)]));
   });
   $('#csv-typen').addEventListener('click', () => {
     const ts = statTypen(daten.devices, statFilter());
     exportiereCSV('vergleich-geraetetypen.csv',
-      ['Gerätetyp', 'Hersteller', 'Geräte', 'Defekte', 'Defekte pro Gerät', 'Ausfalltage'],
+      [t('dt.geraetetyp'), t('th.hersteller'), t('stat.geraete'), t('stat.defekte'), t('stat.defekteProGeraet'), t('stat.ausfalltage')],
       ts.map((s) => [s.kategorie, s.hersteller, s.geraete, s.defekte, f1(s.defekte / s.geraete), s.ausfalltage]));
   });
   $('#csv-distributor').addEventListener('click', () => {
     const ds = statDistributor(daten.devices, statFilter());
     exportiereCSV('reparaturzeit-distributoren.csv',
-      ['Distributor', 'Abgeschlossene Reparaturen', 'Mittlere Reparaturzeit (Tage)', 'Reparaturtage gesamt'],
+      [t('th.distributor'), t('stat.reparaturen'), t('stat.oRepZeit'), t('stat.repTage')],
       ds.map((s) => [s.distributor, s.reparaturen, f1(s.mittlereDauer), s.tageGesamt]));
   });
 }
 
 /* ===================== Dokumente pro Gerät ===================== */
 
-const DOK_KATEGORIEN = ['Bedienungsanleitung', 'Arbeitsanweisung (SOP)', 'Wartungsbericht', 'Zertifikat', 'Sonstiges'];
+// Kategorien werden kanonisch (deutsch) gespeichert und übersetzt angezeigt
+const DOK_KATEGORIEN = {
+  'Bedienungsanleitung': 'dok.kat.anleitung', 'Arbeitsanweisung (SOP)': 'dok.kat.sop',
+  'Wartungsbericht': 'dok.kat.wartung', 'Zertifikat': 'dok.kat.zertifikat', 'Sonstiges': 'dok.kat.sonstiges',
+};
+function dokKategorieName(kat) { return DOK_KATEGORIEN[kat] ? t(DOK_KATEGORIEN[kat]) : kat; }
 const DOK_ICONS = { 'Bedienungsanleitung': '📘', 'Arbeitsanweisung (SOP)': '📋', 'Wartungsbericht': '🛠', 'Zertifikat': '📜', 'Sonstiges': '📄' };
 /** Max. Dateigröße für direkte Uploads (localStorage-Prototyp); größere Dokumente bitte verlinken. */
 const DOK_MAX_BYTES = 2 * 1024 * 1024;
@@ -930,19 +934,19 @@ function dokumenteHtml(g) {
     <div class="dok-row" data-dok="${esc(d.id)}">
       <span class="dok-icon">${DOK_ICONS[d.kategorie] || '📄'}</span>
       <a href="#" class="dok-open">${esc(d.name)}</a>
-      <span class="dok-meta">${esc(d.kategorie)}${d.typ === 'datei' ? ' · ' + dokGroesse(d.groesse) : ' · Link'}</span>
-      ${istAdmin() ? '<button type="button" class="btn btn-sm btn-danger dok-del" title="Dokument entfernen">🗑</button>' : ''}
+      <span class="dok-meta">${esc(dokKategorieName(d.kategorie))}${d.typ === 'datei' ? ' · ' + dokGroesse(d.groesse) : ' · ' + t('dok.link')}</span>
+      ${istAdmin() ? `<button type="button" class="btn btn-sm btn-danger dok-del" title="${t('dok.entfernenBtn')}">🗑</button>` : ''}
     </div>`).join('');
   return `
     <div class="detail-section">
-      <h3>Dokumente</h3>
-      ${liste || '<p><small>Noch keine Dokumente hinterlegt.</small></p>'}
+      <h3>${t('dok.titel')}</h3>
+      ${liste || `<p><small>${t('dok.keine')}</small></p>`}
       <form id="dok-form" class="dok-form">
-        <select id="dok-kategorie">${DOK_KATEGORIEN.map((k) => `<option>${k}</option>`).join('')}</select>
-        <input type="text" id="dok-name" placeholder="Bezeichnung, z. B. „SOP Färbung V3“" maxlength="80">
-        <input type="url" id="dok-url" placeholder="Link (https:// / Netzlaufwerk-URL)">
-        <button type="submit" class="btn btn-sm">+ Link</button>
-        <button type="button" id="dok-datei-btn" class="btn btn-sm">📎 Datei (max. 2 MB)</button>
+        <select id="dok-kategorie">${Object.keys(DOK_KATEGORIEN).map((k) => `<option value="${esc(k)}">${esc(dokKategorieName(k))}</option>`).join('')}</select>
+        <input type="text" id="dok-name" placeholder="${esc(t('dok.namePh'))}" maxlength="80">
+        <input type="url" id="dok-url" placeholder="${esc(t('dok.urlPh'))}">
+        <button type="submit" class="btn btn-sm">${t('dok.linkBtn')}</button>
+        <button type="button" id="dok-datei-btn" class="btn btn-sm">${t('dok.dateiBtn')}</button>
         <input type="file" id="dok-datei" class="hidden">
       </form>
     </div>`;
@@ -958,13 +962,11 @@ function kommendeBelegungen(g) {
     .sort((a, b) => a.von.localeCompare(b.von));
 }
 
-const WOCHENTAGE = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
-
 function formatBelegZeit(b) {
   const von = new Date(b.von), bis = new Date(b.bis);
   const gleicherTag = b.von.slice(0, 10) === b.bis.slice(0, 10);
   const zeit = (d) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-  return `${WOCHENTAGE[von.getDay()].slice(0, 2)} ${formatDatum(b.von.slice(0, 10))} ${zeit(von)}–${gleicherTag ? '' : formatDatum(b.bis.slice(0, 10)) + ' '}${zeit(bis)}`;
+  return `${tArr('wochentage')[von.getDay()].slice(0, 2)} ${formatDatum(b.von.slice(0, 10))} ${zeit(von)}–${gleicherTag ? '' : formatDatum(b.bis.slice(0, 10)) + ' '}${zeit(bis)}`;
 }
 
 /** Überschneidung mit bestehenden Belegungen finden (oder null). */
@@ -978,19 +980,19 @@ function belegungHtml(g) {
     const laeuft = new Date(b.von) <= jetzt && jetzt <= new Date(b.bis);
     return `<div class="beleg-row ${laeuft ? 'beleg-aktiv' : ''}" data-beleg="${esc(b.id)}">
       <span class="beleg-zeit">${formatBelegZeit(b)}</span>
-      <span class="beleg-info"><strong>${esc(b.wer)}</strong> · ${esc(b.zweck)}${laeuft ? ' <span class="beleg-badge">läuft</span>' : ''}</span>
-      ${(istAdmin() || b.wer === nutzer.name) ? '<button type="button" class="btn btn-sm beleg-del">Stornieren</button>' : ''}
+      <span class="beleg-info"><strong>${esc(b.wer)}</strong> · ${esc(b.zweck)}${laeuft ? ` <span class="beleg-badge">${t('beleg.laeuft')}</span>` : ''}</span>
+      ${(istAdmin() || b.wer === nutzer.name) ? `<button type="button" class="btn btn-sm beleg-del">${t('beleg.stornieren')}</button>` : ''}
     </div>`;
   }).join('');
   return `
     <div class="detail-section">
-      <h3>Belegung / Reservierung</h3>
-      ${liste || '<p><small>Keine anstehenden Belegungen – das Gerät ist frei.</small></p>'}
+      <h3>${t('beleg.titel')}</h3>
+      ${liste || `<p><small>${t('beleg.frei')}</small></p>`}
       <form id="beleg-form" class="beleg-form">
-        <input type="datetime-local" id="beleg-von" required title="Von">
-        <input type="datetime-local" id="beleg-bis" required title="Bis">
-        <input type="text" id="beleg-zweck" placeholder="Zweck, z. B. „Färbelauf Routine“" required maxlength="80">
-        <button type="submit" class="btn btn-sm btn-primary">Reservieren</button>
+        <input type="datetime-local" id="beleg-von" required>
+        <input type="datetime-local" id="beleg-bis" required>
+        <input type="text" id="beleg-zweck" placeholder="${esc(t('beleg.zweckPh'))}" required maxlength="80">
+        <button type="submit" class="btn btn-sm btn-primary">${t('beleg.reservieren')}</button>
       </form>
     </div>`;
 }
@@ -1017,10 +1019,10 @@ function oeffneQrModal() {
       <div class="qr-text">
         <strong>${esc(g.name)}</strong>
         <span>${esc(g.manufacturer)} ${esc(g.model || '')}</span>
-        <span>Inv. ${esc(g.inventoryNo || '–')} · SN ${esc(g.serial || '–')}</span>
-        <span>${esc(g.location)}${g.room ? ' · Raum ' + esc(g.room) : ''}</span>
+        <span>${t('zelle.inv')} ${esc(g.inventoryNo || '–')} · SN ${esc(g.serial || '–')}</span>
+        <span>${esc(g.location)}${g.room ? ' · ' + t('zelle.raum') + ' ' + esc(g.room) : ''}</span>
       </div>
-    </div>`).join('') || '<p class="empty-hint">Keine Geräte im aktuellen Filter.</p>';
+    </div>`).join('') || `<p class="empty-hint">${t('qr.keine')}</p>`;
   document.body.classList.add('print-qr');
   $('#modal-qr').classList.remove('hidden');
 }
@@ -1043,28 +1045,28 @@ function renderBelegungsUebersicht() {
   }
   items.sort((a, b) => a.b.von.localeCompare(b.b.von));
   if (!items.length) {
-    $('#belegung-liste').innerHTML = '<p class="empty-hint">Keine Belegungen in den nächsten 14 Tagen.</p>';
+    $('#belegung-liste').innerHTML = `<p class="empty-hint">${t('bel.keine')}</p>`;
     return;
   }
   // Nach Tag gruppieren
   const gruppen = new Map();
   for (const i of items) {
     const d = new Date(i.b.von);
-    const key = `${WOCHENTAGE[d.getDay()]}, ${formatDatum(i.b.von.slice(0, 10))}`;
+    const key = `${tArr('wochentage')[d.getDay()]}, ${formatDatum(i.b.von.slice(0, 10))}`;
     if (!gruppen.has(key)) gruppen.set(key, []);
     gruppen.get(key).push(i);
   }
   const zeit = (s) => s.slice(11, 16);
   $('#belegung-liste').innerHTML = [...gruppen.entries()].map(([tag, eintraege]) => `
     <div class="kal-gruppe">
-      <h2 class="kal-monat">${esc(tag)} <span class="group-count">${eintraege.length} Belegung${eintraege.length === 1 ? '' : 'en'}</span></h2>
+      <h2 class="kal-monat">${esc(tag)} <span class="group-count">${t('bel.belegungen', { n: eintraege.length })}</span></h2>
       ${eintraege.map((i) => {
         const laeuft = new Date(i.b.von) <= jetzt && jetzt <= new Date(i.b.bis);
         return `<div class="kal-item" data-id="${i.g.id}">
           <span class="kal-datum">${zeit(i.b.von)}–${zeit(i.b.bis)}</span>
-          <span class="kal-geraet"><strong>${esc(i.g.name)}</strong> <small>· ${esc(i.g.location)}${i.g.room ? ' · Raum ' + esc(i.g.room) : ''}</small></span>
-          <span class="kal-tage">${esc(i.b.wer)} · ${esc(i.b.zweck)}${laeuft ? ' <span class="beleg-badge">läuft</span>' : ''}</span>
-          <button class="btn btn-sm">Details</button>
+          <span class="kal-geraet"><strong>${esc(i.g.name)}</strong> <small>· ${esc(i.g.location)}${i.g.room ? ' · ' + t('zelle.raum') + ' ' + esc(i.g.room) : ''}</small></span>
+          <span class="kal-tage">${esc(i.b.wer)} · ${esc(i.b.zweck)}${laeuft ? ` <span class="beleg-badge">${t('beleg.laeuft')}</span>` : ''}</span>
+          <button class="btn btn-sm">${t('zelle.details')}</button>
         </div>`;
       }).join('')}
     </div>`).join('');
@@ -1092,34 +1094,32 @@ function kalenderEintraege() {
   return items.sort((a, b) => a.tage - b.tage);
 }
 
-const MONATSNAMEN = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
-
 function renderKalender() {
   const items = kalenderEintraege();
   if (!items.length) {
-    $('#kalender-liste').innerHTML = '<p class="empty-hint">Keine anstehenden Prüfungen im gewählten Filter. 🎉</p>';
+    $('#kalender-liste').innerHTML = `<p class="empty-hint">${t('kal.keine')}</p>`;
     return;
   }
   // Gruppieren: Überfällig zuerst, dann pro Monat
   const gruppen = new Map();
   for (const i of items) {
-    const key = i.tage < 0 ? '⚠ Überfällig' : (() => {
+    const key = i.tage < 0 ? t('kal.ueberfaellig') : (() => {
       const d = new Date(i.datum);
-      return `${MONATSNAMEN[d.getMonth()]} ${d.getFullYear()}`;
+      return `${tArr('monate')[d.getMonth()]} ${d.getFullYear()}`;
     })();
     if (!gruppen.has(key)) gruppen.set(key, []);
     gruppen.get(key).push(i);
   }
   $('#kalender-liste').innerHTML = [...gruppen.entries()].map(([titel, eintraege]) => `
     <div class="kal-gruppe">
-      <h2 class="kal-monat ${titel.startsWith('⚠') ? 'kal-overdue' : ''}">${esc(titel)} <span class="group-count">${eintraege.length} Prüfung${eintraege.length === 1 ? '' : 'en'}</span></h2>
+      <h2 class="kal-monat ${titel.startsWith('⚠') ? 'kal-overdue' : ''}">${esc(titel)} <span class="group-count">${t('kal.pruefungen', { n: eintraege.length })}</span></h2>
       ${eintraege.map((i) => `
         <div class="kal-item" data-id="${i.g.id}">
           <span class="kal-datum ${i.tage < 0 ? 'maint-overdue' : i.tage <= WARTUNG_VORLAUF_TAGE ? 'maint-soon' : ''}">${formatDatum(i.datum)}</span>
           <span class="kal-art">${esc(i.art)}</span>
           <span class="kal-geraet"><strong>${esc(i.g.name)}</strong> <small>· ${esc(i.g.location)} · ${esc(i.g.department)}</small></span>
-          <span class="kal-tage">${i.tage < 0 ? `<span class="maint-overdue">seit ${-i.tage} Tagen überfällig</span>` : `in ${i.tage} Tagen`}</span>
-          <button class="btn btn-sm">Details</button>
+          <span class="kal-tage">${i.tage < 0 ? `<span class="maint-overdue">${t('zelle.ueberfaelligSeit', { n: -i.tage })}</span>` : t('zelle.inTagen', { n: i.tage })}</span>
+          <button class="btn btn-sm">${t('zelle.details')}</button>
         </div>`).join('')}
     </div>`).join('');
   $$('#kalender-liste .kal-item').forEach((el) =>
@@ -1144,11 +1144,11 @@ function exportiereICS() {
       'BEGIN:VEVENT',
       `UID:pruefung-${i.g.id}-${encodeURIComponent(i.art)}-${d}@geraetefuhrpark`,
       `DTSTART;VALUE=DATE:${d}`,
-      `SUMMARY:${icsText(`${i.art} fällig: ${i.g.name}`)}`,
+      `SUMMARY:${icsText(`${i.art} ${t('kal.faellig')}: ${i.g.name}`)}`,
       `DESCRIPTION:${icsText(`${i.g.manufacturer} ${i.g.model || ''} · Inv. ${i.g.inventoryNo || '–'} · SN ${i.g.serial || '–'}`)}`,
       `LOCATION:${icsText(`${i.g.location}${i.g.room ? ', Raum ' + i.g.room : ''}`)}`,
       'BEGIN:VALARM', 'ACTION:DISPLAY',
-      `DESCRIPTION:${icsText(`${i.art} fällig: ${i.g.name}`)}`,
+      `DESCRIPTION:${icsText(`${i.art} ${t('kal.faellig')}: ${i.g.name}`)}`,
       'TRIGGER:-P7D', 'END:VALARM',
       'END:VEVENT');
   }
@@ -1164,14 +1164,10 @@ function exportiereICS() {
 /** Erinnerungs-E-Mail mit allen überfälligen / bald fälligen Prüfungen vorbereiten. */
 function erinnerungsMail() {
   const items = kalenderEintraege().filter((i) => i.tage <= WARTUNG_VORLAUF_TAGE);
-  if (!items.length) { alert('Aktuell sind keine Prüfungen fällig oder bald fällig. 🎉'); return; }
-  const body = [
-    'Hallo zusammen,', '',
-    'folgende Prüfungen/Wartungen sind überfällig oder werden in den nächsten 30 Tagen fällig:', '',
-    ...items.map((i) => `- ${formatDatum(i.datum)} · ${i.art} · ${i.g.name} (${i.g.location}, ${i.g.department})${i.tage < 0 ? ` – ÜBERFÄLLIG seit ${-i.tage} Tagen` : ''}`),
-    '', `Stand: ${formatDatum(isoDatum(heute()))} · Gerätefuhrpark Pathologisches Institut`,
-  ].join('\n');
-  location.href = `mailto:?subject=${encodeURIComponent('Fällige Prüfungen Gerätefuhrpark')}&body=${encodeURIComponent(body)}`;
+  if (!items.length) { alert(t('kal.keineFaellig')); return; }
+  const liste = items.map((i) => `- ${formatDatum(i.datum)} · ${i.art} · ${i.g.name} (${i.g.location}, ${i.g.department})${i.tage < 0 ? ` – ${t('mail.ueberfaelligSeit', { n: -i.tage })}` : ''}`).join('\n');
+  const body = t('mail.erinnerungText', { liste, datum: formatDatum(isoDatum(heute())) });
+  location.href = `mailto:?subject=${encodeURIComponent(t('mail.erinnerungBetreff'))}&body=${encodeURIComponent(body)}`;
 }
 
 /* ===================== Cloud-Synchronisation ===================== */
@@ -1319,6 +1315,16 @@ function initEvents() {
 
   initCsvExporte();
 
+  // Sprachumschalter (Header + Login)
+  $$('.sprach-wahl').forEach((sel) => sel.addEventListener('change', () => {
+    setzeSprache(sel.value);
+    if (nutzer) {
+      $('#user-role').textContent = nutzer.role === 'admin' ? t('rolle.admin') : t('rolle.mitarbeiter');
+      renderAlles();
+      if (!$('#modal-detail').classList.contains('hidden')) renderDetail();
+    }
+  }));
+
   // Copyright-Jahr im Footer und auf der Login-Karte
   $$('.copyright-jahr').forEach((el) => { el.textContent = new Date().getFullYear(); });
 
@@ -1326,6 +1332,7 @@ function initEvents() {
   setInterval(() => { if (nutzer) renderAlles(false); }, 60000);
 }
 
+wendeSprachenAn();
 initEvents();
 initLogin();
 initCloudSync();

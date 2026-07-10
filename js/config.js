@@ -14,6 +14,9 @@
  * Designed by Dietz-Engineering · Initiiert von Christoph Lüttgens
  * ===================================================================== */
 
+/** Hauswährung der App (Kosten, Statistik, CSV-Exporte). */
+const WAEHRUNG = 'CHF';
+
 const SUPABASE_URL = '';      // z. B. 'https://abcdefgh.supabase.co'
 const SUPABASE_ANON_KEY = ''; // der öffentliche "anon"-Key des Projekts
 

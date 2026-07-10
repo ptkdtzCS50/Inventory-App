@@ -17,31 +17,34 @@
 <div id="login-screen" class="login-screen hidden">
   <div class="login-card">
     <img src="assets/logo.svg" alt="Avidia Pharma" class="login-logo-img">
-    <h1>Gerätefuhrpark</h1>
-    <p class="login-sub">Pathologisches Institut – Geräteverwaltung</p>
+    <h1 data-i18n="app.titel">Gerätefuhrpark</h1>
+    <p class="login-sub" data-i18n="login.sub">Pathologisches Institut – Geräteverwaltung</p>
+    <select class="sprach-wahl login-sprache" title="Sprache / Language">
+      <option value="de">Deutsch</option><option value="en">English</option><option value="fr">Français</option><option value="it">Italiano</option>
+    </select>
     <form id="login-form">
       <div id="passwort-feld">
-        <label for="login-passwort">Master-Passwort</label>
-        <input type="password" id="login-passwort" placeholder="Zugangspasswort des Instituts" autocomplete="current-password">
-        <p id="passwort-fehler" class="login-error hidden">Falsches Passwort – bitte erneut versuchen.</p>
+        <label for="login-passwort" data-i18n="login.passwort">Master-Passwort</label>
+        <input type="password" id="login-passwort" data-i18n-ph="login.passwortPh" placeholder="Zugangspasswort des Instituts" autocomplete="current-password">
+        <p id="passwort-fehler" class="login-error hidden" data-i18n="login.passwortFehler">Falsches Passwort – bitte erneut versuchen.</p>
       </div>
-      <label for="login-name">Ihr Name</label>
-      <input type="text" id="login-name" required placeholder="z. B. Dr. Anna Muster" autocomplete="name">
-      <label>Rolle</label>
+      <label for="login-name" data-i18n="login.name">Ihr Name</label>
+      <input type="text" id="login-name" required data-i18n-ph="login.namePh" placeholder="z. B. Dr. Anna Muster" autocomplete="name">
+      <label data-i18n="login.rolle">Rolle</label>
       <div class="role-select">
         <label class="role-option">
           <input type="radio" name="role" value="mitarbeiter" checked>
-          <span><strong>Mitarbeiter/in</strong><br><small>Status ändern, kommentieren</small></span>
+          <span><strong data-i18n="login.mitarbeiter">Mitarbeiter/in</strong><br><small data-i18n="login.mitarbeiterDesc">Status ändern, kommentieren</small></span>
         </label>
         <label class="role-option">
           <input type="radio" name="role" value="admin">
-          <span><strong>Admin</strong><br><small>Geräte anlegen, bearbeiten, löschen</small></span>
+          <span><strong data-i18n="login.admin">Admin</strong><br><small data-i18n="login.adminDesc">Geräte anlegen, bearbeiten, löschen</small></span>
         </label>
       </div>
-      <button type="submit" class="btn btn-primary btn-block">Anmelden</button>
+      <button type="submit" class="btn btn-primary btn-block" data-i18n="login.anmelden">Anmelden</button>
     </form>
-    <p class="login-copyright">© <span class="copyright-jahr"></span> Dietz-Engineering · Alle Rechte vorbehalten<br>
-    Designed by Dietz-Engineering · Initiiert von Christoph Lüttgens</p>
+    <p class="login-copyright">© <span class="copyright-jahr"></span> Dietz-Engineering · <span data-i18n="login.rechte">Alle Rechte vorbehalten</span><br>
+    <span data-i18n="login.designed">Designed by Dietz-Engineering · Initiiert von Christoph Lüttgens</span></p>
   </div>
 </div>
 
@@ -51,17 +54,20 @@
     <div class="header-title">
       <img src="assets/logo-mark.svg" alt="Avidia Pharma" class="header-logo">
       <div>
-        <h1>Gerätefuhrpark</h1>
-        <span class="header-sub">Pathologisches Institut</span>
+        <h1 data-i18n="app.titel">Gerätefuhrpark</h1>
+        <span class="header-sub" data-i18n="app.untertitel">Pathologisches Institut</span>
       </div>
     </div>
     <nav class="tabs">
-      <button class="tab active" data-view="uebersicht">Übersicht</button>
-      <button class="tab" data-view="belegung">Belegung</button>
-      <button class="tab" data-view="kalender">Kalender</button>
-      <button class="tab" data-view="statistik">Statistik</button>
+      <button class="tab active" data-view="uebersicht" data-i18n="tab.uebersicht">Übersicht</button>
+      <button class="tab" data-view="belegung" data-i18n="tab.belegung">Belegung</button>
+      <button class="tab" data-view="kalender" data-i18n="tab.kalender">Kalender</button>
+      <button class="tab" data-view="statistik" data-i18n="tab.statistik">Statistik</button>
     </nav>
     <div class="header-right">
+      <select class="sprach-wahl" title="Sprache / Language">
+        <option value="de">DE</option><option value="en">EN</option><option value="fr">FR</option><option value="it">IT</option>
+      </select>
       <div class="notif-wrap">
         <button id="notif-btn" class="notif-btn" title="Benachrichtigungen">🔔<span id="notif-badge" class="notif-badge hidden"></span></button>
         <div id="notif-panel" class="notif-panel hidden"></div>
@@ -70,7 +76,7 @@
         <span id="user-name"></span>
         <span id="user-role" class="role-chip"></span>
       </div>
-      <button id="logout-btn" class="btn btn-ghost" title="Abmelden">Abmelden</button>
+      <button id="logout-btn" class="btn btn-ghost" data-i18n="header.abmelden">Abmelden</button>
     </div>
   </header>
 
@@ -80,20 +86,20 @@
 
     <section class="toolbar">
       <div class="filters">
-        <input type="search" id="filter-search" placeholder="Suche: Name, Seriennr., Inventarnr. …">
-        <select id="filter-standort"><option value="">Alle Standorte</option></select>
-        <select id="filter-abteilung"><option value="">Alle Abteilungen</option></select>
+        <input type="search" id="filter-search" data-i18n-ph="filter.suchePh" placeholder="Suche: Name, Seriennr., Inventarnr. …">
+        <select id="filter-standort"><option value="" data-i18n="filter.alleStandorte">Alle Standorte</option></select>
+        <select id="filter-abteilung"><option value="" data-i18n="filter.alleAbteilungen">Alle Abteilungen</option></select>
         <select id="filter-status">
-          <option value="">Alle Status</option>
-          <option value="ok">Funktionsfähig</option>
-          <option value="wartung">Wartung fällig / bald fällig</option>
-          <option value="defekt">Defekt</option>
-          <option value="ausser_betrieb">Außer Betrieb</option>
+          <option value="" data-i18n="filter.alleStatus">Alle Status</option>
+          <option value="ok" data-i18n="status.ok">Funktionsfähig</option>
+          <option value="wartung" data-i18n="filter.statusWartung">Wartung fällig / bald fällig</option>
+          <option value="defekt" data-i18n="status.defekt">Defekt</option>
+          <option value="ausser_betrieb" data-i18n="status.ausser_betrieb">Außer Betrieb</option>
         </select>
         <select id="filter-wartung">
-          <option value="">Wartung: alle</option>
-          <option value="faellig30">fällig in ≤ 30 Tagen</option>
-          <option value="ueberfaellig">überfällig</option>
+          <option value="" data-i18n="filter.wartungAlle">Wartung: alle</option>
+          <option value="faellig30" data-i18n="filter.faellig30">fällig in ≤ 30 Tagen</option>
+          <option value="ueberfaellig" data-i18n="filter.ueberfaellig">überfällig</option>
         </select>
         <select id="group-by" title="Gruppierung der Liste">
           <option value="">Keine Gruppierung</option>
@@ -106,32 +112,32 @@
           <option value="distributor">Gruppieren: Distributor</option>
           <option value="status">Gruppieren: Status</option>
         </select>
-        <button id="filter-reset" class="btn btn-ghost">Zurücksetzen</button>
+        <button id="filter-reset" class="btn btn-ghost" data-i18n="filter.reset">Zurücksetzen</button>
       </div>
-      <button id="btn-qr" class="btn" title="QR-Etiketten für die gefilterte Geräteliste erzeugen">🏷 QR-Etiketten</button>
-      <button id="btn-fields" class="btn admin-only" title="Eigene Felder verwalten">⚙ Eigene Felder</button>
-      <button id="btn-new-device" class="btn btn-primary admin-only">+ Neues Gerät</button>
+      <button id="btn-qr" class="btn" data-i18n="btn.qr">🏷 QR-Etiketten</button>
+      <button id="btn-fields" class="btn admin-only" data-i18n="btn.felder">⚙ Eigene Felder</button>
+      <button id="btn-new-device" class="btn btn-primary admin-only" data-i18n="btn.neuesGeraet">+ Neues Gerät</button>
     </section>
 
     <section class="table-wrap">
       <table class="device-table" id="device-table">
         <thead>
           <tr>
-            <th data-sort="status" class="sortable">Status</th>
-            <th data-sort="name" class="sortable">Gerät</th>
-            <th data-sort="category" class="sortable">Typ</th>
-            <th data-sort="location" class="sortable">Standort</th>
-            <th data-sort="department" class="sortable">Abteilung</th>
-            <th data-sort="manufacturer" class="sortable">Hersteller</th>
-            <th data-sort="nextMaint" class="sortable">Nächste Wartung</th>
-            <th data-sort="defectDays" class="sortable">Ausfall</th>
-            <th>Distributor</th>
+            <th data-sort="status" class="sortable" data-i18n="th.status">Status</th>
+            <th data-sort="name" class="sortable" data-i18n="th.geraet">Gerät</th>
+            <th data-sort="category" class="sortable" data-i18n="th.typ">Typ</th>
+            <th data-sort="location" class="sortable" data-i18n="th.standort">Standort</th>
+            <th data-sort="department" class="sortable" data-i18n="th.abteilung">Abteilung</th>
+            <th data-sort="manufacturer" class="sortable" data-i18n="th.hersteller">Hersteller</th>
+            <th data-sort="nextMaint" class="sortable" data-i18n="th.naechstePruefung">Nächste Prüfung</th>
+            <th data-sort="defectDays" class="sortable" data-i18n="th.ausfall">Ausfall</th>
+            <th data-i18n="th.distributor">Distributor</th>
             <th></th>
           </tr>
         </thead>
         <tbody id="device-tbody"></tbody>
       </table>
-      <p id="empty-hint" class="empty-hint hidden">Keine Geräte gefunden.</p>
+      <p id="empty-hint" class="empty-hint hidden" data-i18n="leer.keineGeraete">Keine Geräte gefunden.</p>
     </section>
   </main>
 
@@ -140,78 +146,76 @@
     <section class="toolbar">
       <div class="filters">
         <select id="stat-zeitraum">
-          <option value="6">Letzte 6 Monate</option>
-          <option value="12" selected>Letzte 12 Monate</option>
-          <option value="24">Letzte 24 Monate</option>
-          <option value="0">Gesamter Zeitraum</option>
+          <option value="6" data-i18n="stat.z6">Letzte 6 Monate</option>
+          <option value="12" selected data-i18n="stat.z12">Letzte 12 Monate</option>
+          <option value="24" data-i18n="stat.z24">Letzte 24 Monate</option>
+          <option value="0" data-i18n="stat.z0">Gesamter Zeitraum</option>
         </select>
-        <select id="stat-standort"><option value="">Alle Standorte</option></select>
-        <select id="stat-abteilung"><option value="">Alle Abteilungen</option></select>
-        <select id="stat-hersteller"><option value="">Alle Hersteller</option></select>
+        <select id="stat-standort"><option value="" data-i18n="filter.alleStandorte">Alle Standorte</option></select>
+        <select id="stat-abteilung"><option value="" data-i18n="filter.alleAbteilungen">Alle Abteilungen</option></select>
+        <select id="stat-hersteller"><option value="" data-i18n="filter.alleHersteller">Alle Hersteller</option></select>
       </div>
-      <button class="btn btn-ghost" onclick="window.print()">🖨 Als PDF drucken</button>
+      <button class="btn btn-ghost" onclick="window.print()" data-i18n="stat.drucken">🖨 Als PDF drucken</button>
     </section>
 
     <section class="tiles" id="stat-tiles"></section>
 
     <section class="stat-block">
       <div class="stat-block-head">
-        <h2>Defekte pro Monat</h2>
+        <h2 data-i18n="stat.proMonat">Defekte pro Monat</h2>
       </div>
       <div id="chart-monat" class="chart"></div>
     </section>
 
     <section class="stat-block">
       <div class="stat-block-head">
-        <h2>Ausfallstatistik pro Hersteller</h2>
-        <button class="btn btn-ghost btn-sm" id="csv-hersteller">CSV exportieren</button>
+        <h2 data-i18n="stat.herstellerTitel">Ausfallstatistik pro Hersteller</h2>
+        <button class="btn btn-ghost btn-sm" id="csv-hersteller" data-i18n="stat.csv">CSV exportieren</button>
       </div>
-      <p class="stat-note">Normalisiert auf Gerätebestand und Betriebsjahre, damit Hersteller mit vielen oder alten Geräten nicht unfair abschneiden.</p>
+      <p class="stat-note" data-i18n="stat.herstellerNote">Normalisiert auf Gerätebestand und Betriebsjahre, damit Hersteller mit vielen oder alten Geräten nicht unfair abschneiden.</p>
       <div class="table-wrap"><table class="stat-table" id="table-hersteller"></table></div>
     </section>
 
     <section class="stat-block">
       <div class="stat-block-head">
-        <h2>Ausfallquote nach <span id="dim-titel">Standort</span></h2>
+        <h2><span data-i18n="stat.quoteNach">Ausfallquote nach</span> <span id="dim-titel">Standort</span></h2>
         <div class="stat-block-tools">
           <select id="stat-dimension">
-            <option value="location">Standort</option>
-            <option value="department">Abteilung</option>
-            <option value="team">Team</option>
-            <option value="room">Raum</option>
+            <option value="location" data-i18n="dim.location">Standort</option>
+            <option value="department" data-i18n="dim.department">Abteilung</option>
+            <option value="team" data-i18n="dim.team">Team</option>
+            <option value="room" data-i18n="dim.room">Raum</option>
           </select>
-          <button class="btn btn-ghost btn-sm" id="csv-dimension">CSV exportieren</button>
+          <button class="btn btn-ghost btn-sm" id="csv-dimension" data-i18n="stat.csv">CSV exportieren</button>
         </div>
       </div>
-      <p class="stat-note">Auffällig hohe Quoten können auf Bedienungsprobleme oder Schulungsbedarf an einem
-      Standort hindeuten. Normalisiert auf Gerätebestand und Betriebsjahre – erst „Defekte pro Betriebsjahr"
-      macht Standorte unterschiedlicher Größe und mit unterschiedlich alten Geräten vergleichbar.</p>
+      <p class="stat-note" data-i18n="stat.dimensionNote">Auffällig hohe Quoten können auf Bedienungsprobleme oder Schulungsbedarf hindeuten.</p>
       <div class="table-wrap"><table class="stat-table" id="table-dimension"></table></div>
     </section>
 
     <section class="stat-block">
       <div class="stat-block-head">
-        <h2>Top-Ausfallgeräte</h2>
-        <button class="btn btn-ghost btn-sm" id="csv-geraete">CSV exportieren</button>
+        <h2 data-i18n="stat.topTitel">Top-Ausfallgeräte</h2>
+        <button class="btn btn-ghost btn-sm" id="csv-geraete" data-i18n="stat.csv">CSV exportieren</button>
       </div>
       <div class="table-wrap"><table class="stat-table" id="table-geraete"></table></div>
     </section>
 
     <section class="stat-block">
       <div class="stat-block-head">
-        <h2>Vergleich nach Gerätetyp</h2>
-        <button class="btn btn-ghost btn-sm" id="csv-typen">CSV exportieren</button>
+        <h2 data-i18n="stat.typenTitel">Vergleich nach Gerätetyp</h2>
+        <button class="btn btn-ghost btn-sm" id="csv-typen" data-i18n="stat.csv">CSV exportieren</button>
       </div>
-      <p class="stat-note">Vergleich der Hersteller innerhalb derselben Gerätekategorie.</p>
+      <p class="stat-note" data-i18n="stat.typenNote">Vergleich der Hersteller innerhalb derselben Gerätekategorie.</p>
       <div class="table-wrap"><table class="stat-table" id="table-typen"></table></div>
     </section>
 
     <section class="stat-block">
       <div class="stat-block-head">
-        <h2>Reparaturzeit pro Distributor</h2>
-        <button class="btn btn-ghost btn-sm" id="csv-distributor">CSV exportieren</button>
+        <h2 data-i18n="stat.distributorTitel">Reparaturzeit pro Distributor</h2>
+        <button class="btn btn-ghost btn-sm" id="csv-distributor" data-i18n="stat.csv">CSV exportieren</button>
       </div>
-      <p class="stat-note">Durchschnittliche Dauer von Defektmeldung bis „wieder funktionsfähig" – zeigt, welcher Servicepartner schnell reagiert.</p>
+      <p class="stat-note" data-i18n="stat.distributorNote">Durchschnittliche Dauer von Defektmeldung bis „wieder funktionsfähig".</p>
       <div class="table-wrap"><table class="stat-table" id="table-distributor"></table></div>
     </section>
   </main>
@@ -220,12 +224,11 @@
   <main id="view-belegung" class="view hidden">
     <section class="toolbar">
       <div class="filters">
-        <select id="bel-standort"><option value="">Alle Standorte</option></select>
-        <select id="bel-abteilung"><option value="">Alle Abteilungen</option></select>
+        <select id="bel-standort"><option value="" data-i18n="filter.alleStandorte">Alle Standorte</option></select>
+        <select id="bel-abteilung"><option value="" data-i18n="filter.alleAbteilungen">Alle Abteilungen</option></select>
       </div>
     </section>
-    <p class="stat-note">Belegungen und Reservierungen der nächsten 14 Tage. Neue Reservierungen werden direkt
-    am Gerät angelegt (Detailansicht → „Belegung / Reservierung") – mit automatischer Konfliktprüfung.</p>
+    <p class="stat-note" data-i18n="bel.note">Belegungen und Reservierungen der nächsten 14 Tage.</p>
     <section id="belegung-liste"></section>
   </main>
 
@@ -233,22 +236,21 @@
   <main id="view-kalender" class="view hidden">
     <section class="toolbar">
       <div class="filters">
-        <select id="kal-standort"><option value="">Alle Standorte</option></select>
-        <select id="kal-abteilung"><option value="">Alle Abteilungen</option></select>
-        <select id="kal-art"><option value="">Alle Prüfarten</option></select>
+        <select id="kal-standort"><option value="" data-i18n="filter.alleStandorte">Alle Standorte</option></select>
+        <select id="kal-abteilung"><option value="" data-i18n="filter.alleAbteilungen">Alle Abteilungen</option></select>
+        <select id="kal-art"><option value="" data-i18n="kal.allePruefarten">Alle Prüfarten</option></select>
       </div>
-      <button id="btn-erinnerung" class="btn">✉ Erinnerungs-E-Mail</button>
-      <button id="btn-ics" class="btn btn-primary">📅 Outlook-Export (ICS)</button>
+      <button id="btn-erinnerung" class="btn" data-i18n="kal.erinnerung">✉ Erinnerungs-E-Mail</button>
+      <button id="btn-ics" class="btn btn-primary" data-i18n="kal.ics">📅 Outlook-Export (ICS)</button>
     </section>
-    <p class="stat-note">Alle anstehenden Prüfungen und Wartungen der nächsten 12 Monate. Der ICS-Export lässt
-    sich in Outlook oder jeden anderen Kalender importieren – inklusive Erinnerung 7 Tage vor Fälligkeit.</p>
+    <p class="stat-note" data-i18n="kal.note">Alle anstehenden Prüfungen und Wartungen der nächsten 12 Monate.</p>
     <section id="kalender-liste"></section>
   </main>
 
   <footer class="app-footer">
     <img src="assets/logo.svg" alt="Avidia Pharma" class="footer-logo">
-    <p>© <span class="copyright-jahr"></span> Dietz-Engineering · Alle Rechte vorbehalten ·
-    Designed by Dietz-Engineering · Initiiert von Christoph Lüttgens</p>
+    <p>© <span class="copyright-jahr"></span> Dietz-Engineering · <span data-i18n="login.rechte">Alle Rechte vorbehalten</span> ·
+    <span data-i18n="login.designed">Designed by Dietz-Engineering · Initiiert von Christoph Lüttgens</span></p>
   </footer>
 </div>
 
@@ -262,31 +264,31 @@
     <form id="device-form" class="modal-body">
       <input type="hidden" id="f-id">
       <div class="form-grid">
-        <label>Gerätename *<input type="text" id="f-name" required></label>
-        <label>Gerätetyp / Kategorie *<input type="text" id="f-category" list="dl-category" required></label>
-        <label>Hersteller *<input type="text" id="f-manufacturer" list="dl-manufacturer" required></label>
-        <label>Modell<input type="text" id="f-model"></label>
-        <label>Seriennummer<input type="text" id="f-serial"></label>
-        <label>Interne Inventarnummer<input type="text" id="f-inventory"></label>
-        <label>Standort *<input type="text" id="f-location" list="dl-location" required></label>
-        <label>Abteilung *<input type="text" id="f-department" list="dl-department" required></label>
-        <label>Raum<input type="text" id="f-room" list="dl-room" placeholder="z. B. EG 014"></label>
-        <label>Team<input type="text" id="f-team" list="dl-team" placeholder="z. B. Team Färbung"></label>
-        <label>Distributor / Lieferant<input type="text" id="f-distributor" list="dl-distributor"></label>
-        <label>Service-Kontakt (Technik)<input type="text" id="f-dist-contact" placeholder="Ansprechpartner Hotline"></label>
-        <label>Telefon (Service-Hotline)<input type="tel" id="f-dist-phone"></label>
-        <label>E-Mail (Service)<input type="email" id="f-dist-email"></label>
-        <label>Vertrieb / Außendienst<input type="text" id="f-sales-name" placeholder="Name Außendienstler/in"></label>
-        <label>Telefon (Vertrieb)<input type="tel" id="f-sales-phone"></label>
-        <label>E-Mail (Vertrieb)<input type="email" id="f-sales-email"></label>
-        <label>Anschaffungsdatum<input type="date" id="f-purchase"></label>
-        <label>Garantieende<input type="date" id="f-warranty"></label>
-        <label>Netzwerkadresse (IP/Host)<input type="text" id="f-network" placeholder="z. B. 10.12.4.21"></label>
+        <label data-i18n="form.name">Gerätename *<input type="text" id="f-name" required></label>
+        <label data-i18n="form.kategorie">Gerätetyp / Kategorie *<input type="text" id="f-category" list="dl-category" required></label>
+        <label data-i18n="form.hersteller">Hersteller *<input type="text" id="f-manufacturer" list="dl-manufacturer" required></label>
+        <label data-i18n="form.modell">Modell<input type="text" id="f-model"></label>
+        <label data-i18n="form.serien">Seriennummer<input type="text" id="f-serial"></label>
+        <label data-i18n="form.inventar">Interne Inventarnummer<input type="text" id="f-inventory"></label>
+        <label data-i18n="form.standort">Standort *<input type="text" id="f-location" list="dl-location" required></label>
+        <label data-i18n="form.abteilung">Abteilung *<input type="text" id="f-department" list="dl-department" required></label>
+        <label data-i18n="form.raum">Raum<input type="text" id="f-room" list="dl-room" data-i18n-ph="form.raumPh" placeholder="z. B. EG 014"></label>
+        <label data-i18n="form.team">Team<input type="text" id="f-team" list="dl-team" data-i18n-ph="form.teamPh" placeholder="z. B. Team Färbung"></label>
+        <label data-i18n="form.distributor">Distributor / Lieferant<input type="text" id="f-distributor" list="dl-distributor"></label>
+        <label data-i18n="form.serviceKontakt">Service-Kontakt (Technik)<input type="text" id="f-dist-contact" data-i18n-ph="form.serviceKontaktPh" placeholder="Ansprechpartner Hotline"></label>
+        <label data-i18n="form.telefonService">Telefon (Service-Hotline)<input type="tel" id="f-dist-phone"></label>
+        <label data-i18n="form.emailService">E-Mail (Service)<input type="email" id="f-dist-email"></label>
+        <label data-i18n="form.vertrieb">Vertrieb / Außendienst<input type="text" id="f-sales-name" data-i18n-ph="form.vertriebPh" placeholder="Name Außendienstler/in"></label>
+        <label data-i18n="form.telefonVertrieb">Telefon (Vertrieb)<input type="tel" id="f-sales-phone"></label>
+        <label data-i18n="form.emailVertrieb">E-Mail (Vertrieb)<input type="email" id="f-sales-email"></label>
+        <label data-i18n="dt.anschaffung">Anschaffungsdatum<input type="date" id="f-purchase"></label>
+        <label data-i18n="dt.garantie">Garantieende<input type="date" id="f-warranty"></label>
+        <label data-i18n="form.netzwerk">Netzwerkadresse (IP/Host)<input type="text" id="f-network" placeholder="z. B. 10.12.4.21"></label>
         <div id="custom-fields-form" style="display: contents;"></div>
         <div class="pruef-editor-wrap">
-          <span class="pruef-editor-titel">Prüfungen &amp; Wartungen (je Prüfart eigenes Intervall)</span>
+          <span class="pruef-editor-titel" data-i18n="pruef.editorTitel">Prüfungen &amp; Wartungen (je Prüfart eigenes Intervall)</span>
           <div id="pruef-editor"></div>
-          <button type="button" id="pruef-add" class="btn btn-sm">+ Prüfart hinzufügen</button>
+          <button type="button" id="pruef-add" class="btn btn-sm" data-i18n="pruef.add">+ Prüfart hinzufügen</button>
         </div>
       </div>
       <datalist id="dl-pruefart">
@@ -300,8 +302,8 @@
       <datalist id="dl-team"></datalist>
       <datalist id="dl-distributor"></datalist>
       <div class="modal-foot">
-        <button type="button" class="btn btn-ghost" data-close="modal-form">Abbrechen</button>
-        <button type="submit" class="btn btn-primary">Speichern</button>
+        <button type="button" class="btn btn-ghost" data-close="modal-form" data-i18n="form.abbrechen">Abbrechen</button>
+        <button type="submit" class="btn btn-primary" data-i18n="form.speichern">Speichern</button>
       </div>
     </form>
   </div>
@@ -311,21 +313,20 @@
 <div id="modal-fields" class="modal-backdrop hidden">
   <div class="modal">
     <div class="modal-head">
-      <h2>Eigene Felder</h2>
+      <h2 data-i18n="felder.titel">Eigene Felder</h2>
       <button class="modal-close" data-close="modal-fields">✕</button>
     </div>
     <div class="modal-body">
-      <p class="stat-note">Eigene Felder erscheinen bei allen Geräten im Bearbeitungsformular und in der
-      Detailansicht – z. B. „Softwareversion", „Letzte STK" oder „Kostenstelle".</p>
+      <p class="stat-note" data-i18n="felder.hinweis">Eigene Felder erscheinen bei allen Geräten.</p>
       <div id="fields-list"></div>
       <form id="field-form" class="field-form">
-        <input type="text" id="nf-label" placeholder="Feldname, z. B. „Softwareversion&#8220;" required maxlength="40">
+        <input type="text" id="nf-label" data-i18n-ph="felder.ph" placeholder="Feldname" required maxlength="40">
         <select id="nf-type">
-          <option value="text">Text</option>
-          <option value="number">Zahl</option>
-          <option value="date">Datum</option>
+          <option value="text" data-i18n="felder.typText">Text</option>
+          <option value="number" data-i18n="felder.typZahl">Zahl</option>
+          <option value="date" data-i18n="felder.typDatum">Datum</option>
         </select>
-        <button type="submit" class="btn btn-primary">Hinzufügen</button>
+        <button type="submit" class="btn btn-primary" data-i18n="felder.add">Hinzufügen</button>
       </form>
     </div>
   </div>
@@ -335,16 +336,14 @@
 <div id="modal-qr" class="modal-backdrop hidden">
   <div class="modal modal-lg">
     <div class="modal-head">
-      <h2>QR-Etiketten</h2>
+      <h2 data-i18n="qr.titel">QR-Etiketten</h2>
       <div>
-        <button class="btn btn-primary" onclick="window.print()">🖨 Etiketten drucken</button>
+        <button class="btn btn-primary" onclick="window.print()" data-i18n="qr.drucken">🖨 Etiketten drucken</button>
         <button class="modal-close" data-close="modal-qr">✕</button>
       </div>
     </div>
     <div class="modal-body">
-      <p class="stat-note qr-hinweis">Etiketten ausdrucken und an den Geräten anbringen – der Scan mit dem
-      Handy öffnet direkt die Detailseite des Geräts (Defekt melden, Kommentar schreiben, Status einsehen).
-      Erzeugt werden Etiketten für die aktuell gefilterte Geräteliste.</p>
+      <p class="stat-note qr-hinweis" data-i18n="qr.hinweis">Etiketten ausdrucken und an den Geräten anbringen.</p>
       <div id="qr-grid" class="qr-grid"></div>
     </div>
   </div>
@@ -362,6 +361,7 @@
 </div>
 
 <script src="js/vendor/qrcode.js"></script>
+<script src="js/i18n.js"></script>
 <script src="js/config.js"></script>
 <script src="js/data.js"></script>
 <script src="js/monitoring.js"></script>
