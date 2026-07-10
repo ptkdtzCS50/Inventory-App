@@ -26,6 +26,12 @@ function tageVor(n) { const d = heute(); d.setDate(d.getDate() - n); return isoD
 
 function monateVor(n) { const d = heute(); d.setMonth(d.getMonth() - n); return isoDatum(d); }
 
+/** Datum+Uhrzeit in n Tagen, z. B. zeitAb(1, '08:00') -> '2026-07-11T08:00'. */
+function zeitAb(tage, zeit) { const d = heute(); d.setDate(d.getDate() + tage); return `${isoDatum(d)}T${zeit}`; }
+
+/** Kurze eindeutige ID für Dokumente/Belegungen. */
+function neueId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+
 /** ISO-Datum (JJJJ-MM-TT) -> TT.MM.JJJJ */
 function formatDatum(iso) {
   if (!iso) return '–';
@@ -143,6 +149,9 @@ function migriereDaten(daten) {
       else if (g.maintenanceInterval) g.pruefungen = [{ art: 'Wartung', intervall: g.maintenanceInterval, letzte: g.lastMaintenance || null }];
       else g.pruefungen = [];
     }
+    // Dokumente & Belegungen nachrüsten
+    if (!g.dokumente) g.dokumente = s && s.dokumente ? JSON.parse(JSON.stringify(s.dokumente)) : [];
+    if (!g.belegungen) g.belegungen = s && s.belegungen ? JSON.parse(JSON.stringify(s.belegungen)) : [];
   }
   // Eigene (vom Admin definierte) Felder
   if (!daten.customFields) daten.customFields = [];
@@ -165,7 +174,13 @@ function ladeDaten() {
 }
 
 function speichereDaten(daten) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(daten));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(daten));
+  } catch (e) {
+    // localStorage-Kontingent erschöpft (meist durch hochgeladene Dateien)
+    alert('Speicher voll: Der Browser-Speicher ist erschöpft. Bitte große Dokument-Dateien entfernen und stattdessen als Link hinterlegen.');
+    throw e;
+  }
   if (cloudAktiv()) cloudSpeichern(daten).catch((e) => console.warn('Cloud-Sync:', e.message));
 }
 
@@ -249,6 +264,9 @@ function erzeugeDemoDaten() {
       room: 'EG 012', team: 'Team Zuschnitt & Schnitt', ...leica,
       purchaseDate: monateVor(50), warrantyEnd: monateVor(26),
       pruefungen: [{ art: 'Wartung', intervall: 12, letzte: monateVor(8) }],
+      dokumente: [
+        { id: 'dok-demo-1', kategorie: 'Wartungsbericht', name: 'Wartungsbericht 2025', typ: 'link', url: 'https://intranet.patho.local/berichte/rm2255-wartung-2025.pdf' },
+      ],
       status: 'ok', defectSince: null,
       defectHistory: [{ start: monateVor(14), end: tageVor(Math.round(14 * 30.4) - 2), kosten: 420 }],
       log: [sysLog(monateVor(8), 'Wartung durchgeführt.')],
@@ -261,6 +279,14 @@ function erzeugeDemoDaten() {
       room: 'EG 014', team: 'Team Färbung', ...sakura,
       purchaseDate: monateVor(30), warrantyEnd: monateVor(6),
       pruefungen: [{ art: 'Wartung', intervall: 6, letzte: tageVor(170) }, { art: 'STK', intervall: 24, letzte: monateVor(20) }],
+      dokumente: [
+        { id: 'dok-demo-2', kategorie: 'Bedienungsanleitung', name: 'Bedienungsanleitung Tissue-Tek Prisma Plus', typ: 'link', url: 'https://intranet.patho.local/doku/tissue-tek-prisma-plus.pdf' },
+        { id: 'dok-demo-3', kategorie: 'Arbeitsanweisung (SOP)', name: 'SOP H&E-Färbung V3.2', typ: 'link', url: 'https://intranet.patho.local/sop/haee-faerbung-v32.pdf' },
+      ],
+      belegungen: [
+        { id: 'bel-demo-1', von: zeitAb(1, '08:00'), bis: zeitAb(1, '12:00'), wer: 'K. Hoffmann', zweck: 'H&E-Färbelauf Routine' },
+        { id: 'bel-demo-2', von: zeitAb(1, '13:00'), bis: zeitAb(1, '15:00'), wer: 'S. Albrecht', zweck: 'Sonderfärbungen Forschung' },
+      ],
       status: 'ok', defectSince: null,
       defectHistory: [],
       log: [sysLog(tageVor(170), 'Wartung durchgeführt.')],
@@ -311,6 +337,12 @@ function erzeugeDemoDaten() {
       room: 'EG 003 (OP-Nähe)', team: 'Team Schnellschnitt', ...leica,
       purchaseDate: monateVor(38), warrantyEnd: monateVor(14),
       pruefungen: [{ art: 'Wartung', intervall: 12, letzte: monateVor(9) }, { art: 'STK', intervall: 12, letzte: monateVor(6) }],
+      dokumente: [
+        { id: 'dok-demo-4', kategorie: 'Arbeitsanweisung (SOP)', name: 'SOP Schnellschnitt-Einbettung', typ: 'link', url: 'https://intranet.patho.local/sop/schnellschnitt-einbettung.pdf' },
+      ],
+      belegungen: [
+        { id: 'bel-demo-3', von: zeitAb(0, '07:30'), bis: zeitAb(0, '15:30'), wer: 'Schnellschnitt-Dienst', zweck: 'OP-Begleitung (Dauerbelegung)' },
+      ],
       status: 'ok', defectSince: null,
       defectHistory: [{ start: monateVor(6), end: tageVor(Math.round(6 * 30.4) - 1), kosten: 290 }],
       log: [],
@@ -356,6 +388,12 @@ function erzeugeDemoDaten() {
       room: 'Nord 2.01', team: 'Team Molekularpathologie', ...thermo,
       purchaseDate: monateVor(26), warrantyEnd: monateVor(2),
       pruefungen: [{ art: 'Wartung', intervall: 12, letzte: monateVor(3) }, { art: 'MTK', intervall: 12, letzte: monateVor(3) }],
+      dokumente: [
+        { id: 'dok-demo-5', kategorie: 'Bedienungsanleitung', name: 'Bedienungsanleitung ProFlex 96', typ: 'link', url: 'https://intranet.patho.local/doku/proflex96.pdf' },
+      ],
+      belegungen: [
+        { id: 'bel-demo-4', von: zeitAb(2, '09:00'), bis: zeitAb(2, '11:30'), wer: 'M. Weber', zweck: 'PCR-Lauf Panel 3' },
+      ],
       status: 'ok', defectSince: null, defectHistory: [], log: [],
     },
     {

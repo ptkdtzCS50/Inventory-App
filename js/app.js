@@ -275,6 +275,8 @@ function fuelleFilterOptionen() {
   setze('#stat-hersteller', hersteller, $('#stat-hersteller').value);
   setze('#kal-standort', standorte, $('#kal-standort').value);
   setze('#kal-abteilung', abteilungen, $('#kal-abteilung').value);
+  setze('#bel-standort', standorte, $('#bel-standort').value);
+  setze('#bel-abteilung', abteilungen, $('#bel-abteilung').value);
   const pruefarten = new Set(daten.devices.flatMap((g) => (g.pruefungen || []).map((p) => p.art)));
   setze('#kal-art', pruefarten, $('#kal-art').value);
 
@@ -432,6 +434,8 @@ function renderDetail() {
             <tbody>${pruefZeilen}</tbody></table></div>`
         : '<p><small>Keine Prüfzyklen hinterlegt – über „Bearbeiten" ergänzen.</small></p>'}
     </div>
+    ${dokumenteHtml(g)}
+    ${belegungHtml(g)}
     <div class="detail-actions">${aktionen.join('')}</div>
     <div class="detail-section">
       <h3>Verlauf & Kommentare</h3>
@@ -461,6 +465,77 @@ function renderDetail() {
   $$('#detail-body .btn-status').forEach((btn) => {
     if (btn.dataset.aktion) btn.addEventListener('click', () => statusAktion(g, btn.dataset.aktion));
   });
+
+  // --- Dokumente ---
+  $$('#detail-body .dok-open').forEach((a) => a.addEventListener('click', (ev) => {
+    ev.preventDefault();
+    const d = (g.dokumente || []).find((x) => x.id === a.closest('.dok-row').dataset.dok);
+    if (d) oeffneDokument(d).catch(() => alert('Dokument konnte nicht geöffnet werden.'));
+  }));
+  $$('#detail-body .dok-del').forEach((btn) => btn.addEventListener('click', () => {
+    const d = (g.dokumente || []).find((x) => x.id === btn.closest('.dok-row').dataset.dok);
+    if (!d || !confirm(`Dokument „${d.name}“ entfernen?`)) return;
+    g.dokumente = g.dokumente.filter((x) => x.id !== d.id);
+    systemEintrag(g, `Dokument entfernt: ${d.name} (${nutzer.name}).`);
+    speichereDaten(daten);
+    renderDetail();
+  }));
+  $('#dok-form').addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    const url = $('#dok-url').value.trim();
+    const name = $('#dok-name').value.trim() || url;
+    if (!url) { alert('Bitte einen Link eintragen – oder „Datei" für einen Upload nutzen.'); return; }
+    g.dokumente.push({ id: neueId(), kategorie: $('#dok-kategorie').value, name, typ: 'link', url });
+    systemEintrag(g, `Dokument verlinkt: ${name} (${nutzer.name}).`);
+    speichereDaten(daten);
+    renderDetail();
+  });
+  $('#dok-datei-btn').addEventListener('click', () => $('#dok-datei').click());
+  $('#dok-datei').addEventListener('change', () => {
+    const datei = $('#dok-datei').files[0];
+    if (!datei) return;
+    if (datei.size > DOK_MAX_BYTES) {
+      alert('Datei ist größer als 2 MB. Bitte große Dokumente als Link hinterlegen (Netzlaufwerk/Intranet) – echte Uploads folgen mit dem Backend.');
+      return;
+    }
+    const leser = new FileReader();
+    leser.onload = () => {
+      const name = $('#dok-name').value.trim() || datei.name;
+      g.dokumente.push({ id: neueId(), kategorie: $('#dok-kategorie').value, name, typ: 'datei', url: leser.result, groesse: datei.size });
+      systemEintrag(g, `Dokument hochgeladen: ${name} (${nutzer.name}).`);
+      speichereDaten(daten);
+      renderDetail();
+    };
+    leser.readAsDataURL(datei);
+  });
+
+  // --- Belegung ---
+  $('#beleg-form').addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    const von = $('#beleg-von').value, bis = $('#beleg-bis').value;
+    const zweck = $('#beleg-zweck').value.trim();
+    if (!von || !bis || !zweck) return;
+    if (bis <= von) { alert('Das Ende der Reservierung muss nach dem Beginn liegen.'); return; }
+    const konflikt = belegungsKonflikt(g, von, bis, null);
+    if (konflikt) {
+      alert(`Konflikt: Das Gerät ist in diesem Zeitraum bereits reserviert –\n${formatBelegZeit(konflikt)} · ${konflikt.wer} · ${konflikt.zweck}`);
+      return;
+    }
+    g.belegungen.push({ id: neueId(), von, bis, wer: nutzer.name, zweck });
+    systemEintrag(g, `Reservierung angelegt: ${formatBelegZeit({ von, bis })} – ${zweck} (${nutzer.name}).`);
+    speichereDaten(daten);
+    renderDetail();
+    renderAlles(false);
+  });
+  $$('#detail-body .beleg-del').forEach((btn) => btn.addEventListener('click', () => {
+    const b = (g.belegungen || []).find((x) => x.id === btn.closest('.beleg-row').dataset.beleg);
+    if (!b || !confirm(`Reservierung „${b.zweck}“ (${formatBelegZeit(b)}) stornieren?`)) return;
+    g.belegungen = g.belegungen.filter((x) => x.id !== b.id);
+    systemEintrag(g, `Reservierung storniert: ${formatBelegZeit(b)} – ${b.zweck} (${nutzer.name}).`);
+    speichereDaten(daten);
+    renderDetail();
+    renderAlles(false);
+  }));
 
   // Prüfung als durchgeführt eintragen
   $$('#detail-body .pruef-done').forEach((btn) => btn.addEventListener('click', () => {
@@ -829,6 +904,97 @@ function initCsvExporte() {
   });
 }
 
+/* ===================== Dokumente pro Gerät ===================== */
+
+const DOK_KATEGORIEN = ['Bedienungsanleitung', 'Arbeitsanweisung (SOP)', 'Wartungsbericht', 'Zertifikat', 'Sonstiges'];
+const DOK_ICONS = { 'Bedienungsanleitung': '📘', 'Arbeitsanweisung (SOP)': '📋', 'Wartungsbericht': '🛠', 'Zertifikat': '📜', 'Sonstiges': '📄' };
+/** Max. Dateigröße für direkte Uploads (localStorage-Prototyp); größere Dokumente bitte verlinken. */
+const DOK_MAX_BYTES = 2 * 1024 * 1024;
+
+function dokGroesse(bytes) {
+  if (!bytes) return '';
+  return bytes > 1024 * 1024 ? (bytes / 1048576).toFixed(1).replace('.', ',') + ' MB' : Math.round(bytes / 1024) + ' KB';
+}
+
+/** Dokument öffnen: Links direkt, hochgeladene Dateien über eine Blob-URL. */
+async function oeffneDokument(d) {
+  if (d.typ === 'link') { window.open(d.url, '_blank'); return; }
+  const blob = await (await fetch(d.url)).blob();
+  const url = URL.createObjectURL(blob);
+  window.open(url, '_blank');
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
+function dokumenteHtml(g) {
+  const liste = (g.dokumente || []).map((d) => `
+    <div class="dok-row" data-dok="${esc(d.id)}">
+      <span class="dok-icon">${DOK_ICONS[d.kategorie] || '📄'}</span>
+      <a href="#" class="dok-open">${esc(d.name)}</a>
+      <span class="dok-meta">${esc(d.kategorie)}${d.typ === 'datei' ? ' · ' + dokGroesse(d.groesse) : ' · Link'}</span>
+      ${istAdmin() ? '<button type="button" class="btn btn-sm btn-danger dok-del" title="Dokument entfernen">🗑</button>' : ''}
+    </div>`).join('');
+  return `
+    <div class="detail-section">
+      <h3>Dokumente</h3>
+      ${liste || '<p><small>Noch keine Dokumente hinterlegt.</small></p>'}
+      <form id="dok-form" class="dok-form">
+        <select id="dok-kategorie">${DOK_KATEGORIEN.map((k) => `<option>${k}</option>`).join('')}</select>
+        <input type="text" id="dok-name" placeholder="Bezeichnung, z. B. „SOP Färbung V3“" maxlength="80">
+        <input type="url" id="dok-url" placeholder="Link (https:// / Netzlaufwerk-URL)">
+        <button type="submit" class="btn btn-sm">+ Link</button>
+        <button type="button" id="dok-datei-btn" class="btn btn-sm">📎 Datei (max. 2 MB)</button>
+        <input type="file" id="dok-datei" class="hidden">
+      </form>
+    </div>`;
+}
+
+/* ===================== Belegung / Reservierung ===================== */
+
+/** Kommende + laufende Belegungen eines Geräts, chronologisch. */
+function kommendeBelegungen(g) {
+  const jetzt = new Date();
+  return (g.belegungen || [])
+    .filter((b) => new Date(b.bis) >= jetzt)
+    .sort((a, b) => a.von.localeCompare(b.von));
+}
+
+const WOCHENTAGE = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
+
+function formatBelegZeit(b) {
+  const von = new Date(b.von), bis = new Date(b.bis);
+  const gleicherTag = b.von.slice(0, 10) === b.bis.slice(0, 10);
+  const zeit = (d) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  return `${WOCHENTAGE[von.getDay()].slice(0, 2)} ${formatDatum(b.von.slice(0, 10))} ${zeit(von)}–${gleicherTag ? '' : formatDatum(b.bis.slice(0, 10)) + ' '}${zeit(bis)}`;
+}
+
+/** Überschneidung mit bestehenden Belegungen finden (oder null). */
+function belegungsKonflikt(g, von, bis, ausserId) {
+  return (g.belegungen || []).find((b) => b.id !== ausserId && von < b.bis && bis > b.von) || null;
+}
+
+function belegungHtml(g) {
+  const jetzt = new Date();
+  const liste = kommendeBelegungen(g).map((b) => {
+    const laeuft = new Date(b.von) <= jetzt && jetzt <= new Date(b.bis);
+    return `<div class="beleg-row ${laeuft ? 'beleg-aktiv' : ''}" data-beleg="${esc(b.id)}">
+      <span class="beleg-zeit">${formatBelegZeit(b)}</span>
+      <span class="beleg-info"><strong>${esc(b.wer)}</strong> · ${esc(b.zweck)}${laeuft ? ' <span class="beleg-badge">läuft</span>' : ''}</span>
+      ${(istAdmin() || b.wer === nutzer.name) ? '<button type="button" class="btn btn-sm beleg-del">Stornieren</button>' : ''}
+    </div>`;
+  }).join('');
+  return `
+    <div class="detail-section">
+      <h3>Belegung / Reservierung</h3>
+      ${liste || '<p><small>Keine anstehenden Belegungen – das Gerät ist frei.</small></p>'}
+      <form id="beleg-form" class="beleg-form">
+        <input type="datetime-local" id="beleg-von" required title="Von">
+        <input type="datetime-local" id="beleg-bis" required title="Bis">
+        <input type="text" id="beleg-zweck" placeholder="Zweck, z. B. „Färbelauf Routine“" required maxlength="80">
+        <button type="submit" class="btn btn-sm btn-primary">Reservieren</button>
+      </form>
+    </div>`;
+}
+
 /* ===================== QR-Etiketten ===================== */
 
 /** Deep-Link zur Detailansicht eines Geräts (Inhalt der QR-Codes). */
@@ -857,6 +1023,53 @@ function oeffneQrModal() {
     </div>`).join('') || '<p class="empty-hint">Keine Geräte im aktuellen Filter.</p>';
   document.body.classList.add('print-qr');
   $('#modal-qr').classList.remove('hidden');
+}
+
+/* ===================== Belegungs-Übersicht (Tab) ===================== */
+
+function renderBelegungsUebersicht() {
+  const standort = $('#bel-standort').value;
+  const abteilung = $('#bel-abteilung').value;
+  const jetzt = new Date();
+  const horizont = new Date(); horizont.setDate(horizont.getDate() + 14);
+  const items = [];
+  for (const g of daten.devices) {
+    if (standort && g.location !== standort) continue;
+    if (abteilung && g.department !== abteilung) continue;
+    for (const b of g.belegungen || []) {
+      if (new Date(b.bis) < jetzt || new Date(b.von) > horizont) continue;
+      items.push({ g, b });
+    }
+  }
+  items.sort((a, b) => a.b.von.localeCompare(b.b.von));
+  if (!items.length) {
+    $('#belegung-liste').innerHTML = '<p class="empty-hint">Keine Belegungen in den nächsten 14 Tagen.</p>';
+    return;
+  }
+  // Nach Tag gruppieren
+  const gruppen = new Map();
+  for (const i of items) {
+    const d = new Date(i.b.von);
+    const key = `${WOCHENTAGE[d.getDay()]}, ${formatDatum(i.b.von.slice(0, 10))}`;
+    if (!gruppen.has(key)) gruppen.set(key, []);
+    gruppen.get(key).push(i);
+  }
+  const zeit = (s) => s.slice(11, 16);
+  $('#belegung-liste').innerHTML = [...gruppen.entries()].map(([tag, eintraege]) => `
+    <div class="kal-gruppe">
+      <h2 class="kal-monat">${esc(tag)} <span class="group-count">${eintraege.length} Belegung${eintraege.length === 1 ? '' : 'en'}</span></h2>
+      ${eintraege.map((i) => {
+        const laeuft = new Date(i.b.von) <= jetzt && jetzt <= new Date(i.b.bis);
+        return `<div class="kal-item" data-id="${i.g.id}">
+          <span class="kal-datum">${zeit(i.b.von)}–${zeit(i.b.bis)}</span>
+          <span class="kal-geraet"><strong>${esc(i.g.name)}</strong> <small>· ${esc(i.g.location)}${i.g.room ? ' · Raum ' + esc(i.g.room) : ''}</small></span>
+          <span class="kal-tage">${esc(i.b.wer)} · ${esc(i.b.zweck)}${laeuft ? ' <span class="beleg-badge">läuft</span>' : ''}</span>
+          <button class="btn btn-sm">Details</button>
+        </div>`;
+      }).join('')}
+    </div>`).join('');
+  $$('#belegung-liste .kal-item').forEach((el) =>
+    el.querySelector('.btn').addEventListener('click', () => oeffneDetail(Number(el.dataset.id))));
 }
 
 /* ===================== Kalender (Fälligkeiten) ===================== */
@@ -1007,16 +1220,18 @@ function renderAlles(filterNeu = true) {
   renderBenachrichtigungen();
   if (!$('#view-statistik').classList.contains('hidden')) renderStatistik();
   if (!$('#view-kalender').classList.contains('hidden')) renderKalender();
+  if (!$('#view-belegung').classList.contains('hidden')) renderBelegungsUebersicht();
 }
 
 function initEvents() {
   // Tabs
   $$('.tab').forEach((tab) => tab.addEventListener('click', () => {
     $$('.tab').forEach((t) => t.classList.toggle('active', t === tab));
-    ['uebersicht', 'kalender', 'statistik'].forEach((v) =>
+    ['uebersicht', 'belegung', 'kalender', 'statistik'].forEach((v) =>
       $('#view-' + v).classList.toggle('hidden', tab.dataset.view !== v));
     if (tab.dataset.view === 'statistik') renderStatistik();
     if (tab.dataset.view === 'kalender') renderKalender();
+    if (tab.dataset.view === 'belegung') renderBelegungsUebersicht();
   }));
 
   // Filter Übersicht
@@ -1056,6 +1271,8 @@ function initEvents() {
   $('#btn-erinnerung').addEventListener('click', erinnerungsMail);
   ['#kal-standort', '#kal-abteilung', '#kal-art'].forEach((s) =>
     $(s).addEventListener('change', renderKalender));
+  ['#bel-standort', '#bel-abteilung'].forEach((s) =>
+    $(s).addEventListener('change', renderBelegungsUebersicht));
 
   // Benachrichtigungen
   $('#notif-btn').addEventListener('click', (e) => {

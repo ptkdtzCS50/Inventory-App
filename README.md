@@ -115,6 +115,31 @@ Standort, Abteilung und Prüfart. Dazu:
   Teamleitung). Ein vollautomatischer wöchentlicher Versand braucht ein
   Backend und ist als Ausbauschritt vorgesehen.
 
+### Dokumente pro Gerät
+In der Detailansicht lassen sich Dokumente hinterlegen – kategorisiert als
+Bedienungsanleitung, Arbeitsanweisung (SOP), Wartungsbericht, Zertifikat
+oder Sonstiges:
+- **Links** (empfohlen): Verweis auf Netzlaufwerk, Intranet oder DMS –
+  ohne Größenlimit
+- **Datei-Upload** bis 2 MB direkt in der App (localStorage-Prototyp);
+  größere Dateien bitte verlinken – echte Uploads ohne Limit folgen mit
+  dem Supabase-Backend (Storage)
+
+Zusammen mit den QR-Etiketten wird das Gerät damit zum Einstiegspunkt:
+Scan am Gerät → Anleitung/SOP sofort auf dem Handy.
+
+### Belegungs-/Auslastungskalender
+Jedes Gerät hat einen Reservierungsbereich in der Detailansicht:
+Zeitraum (von/bis), Zweck – der Name kommt vom angemeldeten Nutzer.
+**Konfliktprüfung inklusive:** Überschneidet sich eine neue Reservierung
+mit einer bestehenden, wird sie mit Hinweis auf den Konflikt abgelehnt.
+Stornieren kann die eigene Reservierung jeder selbst, fremde nur der Admin;
+alles wird im Geräteverlauf protokolliert.
+
+Der Tab **„Belegung"** zeigt alle Reservierungen der nächsten 14 Tage –
+nach Tag gruppiert, filterbar nach Standort und Abteilung, mit
+„läuft"-Markierung für aktuell aktive Belegungen.
+
 ### QR-Code-Etiketten
 „🏷 QR-Etiketten" erzeugt einen druckbaren Etikettenbogen für die aktuell
 gefilterte Geräteliste (QR-Code + Name, Modell, Inventar-/Seriennummer,

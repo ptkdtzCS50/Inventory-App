@@ -57,6 +57,7 @@
     </div>
     <nav class="tabs">
       <button class="tab active" data-view="uebersicht">Übersicht</button>
+      <button class="tab" data-view="belegung">Belegung</button>
       <button class="tab" data-view="kalender">Kalender</button>
       <button class="tab" data-view="statistik">Statistik</button>
     </nav>
@@ -213,6 +214,19 @@
       <p class="stat-note">Durchschnittliche Dauer von Defektmeldung bis „wieder funktionsfähig" – zeigt, welcher Servicepartner schnell reagiert.</p>
       <div class="table-wrap"><table class="stat-table" id="table-distributor"></table></div>
     </section>
+  </main>
+
+  <!-- ===== Ansicht: Belegung ===== -->
+  <main id="view-belegung" class="view hidden">
+    <section class="toolbar">
+      <div class="filters">
+        <select id="bel-standort"><option value="">Alle Standorte</option></select>
+        <select id="bel-abteilung"><option value="">Alle Abteilungen</option></select>
+      </div>
+    </section>
+    <p class="stat-note">Belegungen und Reservierungen der nächsten 14 Tage. Neue Reservierungen werden direkt
+    am Gerät angelegt (Detailansicht → „Belegung / Reservierung") – mit automatischer Konfliktprüfung.</p>
+    <section id="belegung-liste"></section>
   </main>
 
   <!-- ===== Ansicht: Kalender ===== -->
