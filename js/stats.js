@@ -51,7 +51,7 @@ function statHersteller(devices, filter) {
   const map = new Map();
   for (const g of geraete) {
     if (!map.has(g.manufacturer)) {
-      map.set(g.manufacturer, { hersteller: g.manufacturer, geraete: 0, jahre: 0, defekte: 0, ausfalltage: 0 });
+      map.set(g.manufacturer, { hersteller: g.manufacturer, geraete: 0, jahre: 0, defekte: 0, ausfalltage: 0, kosten: 0 });
     }
     const s = map.get(g.manufacturer);
     s.geraete++;
@@ -62,6 +62,7 @@ function statHersteller(devices, filter) {
     if (!s) continue;
     s.defekte++;
     s.ausfalltage += e.dauerTage;
+    s.kosten += e.kosten || 0;
   }
   return [...map.values()]
     .map((s) => ({
@@ -84,6 +85,7 @@ function statGeraete(devices, filter) {
         geraet: g,
         defekte: events.length,
         ausfalltage: events.reduce((s, e) => s + e.dauerTage, 0),
+        kosten: events.reduce((s, e) => s + (e.kosten || 0), 0),
         alterJahre: betriebsjahre(g),
         defekteProBetriebsjahr: events.length / betriebsjahre(g),
       };

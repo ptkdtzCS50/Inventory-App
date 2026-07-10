@@ -57,6 +57,7 @@
     </div>
     <nav class="tabs">
       <button class="tab active" data-view="uebersicht">Übersicht</button>
+      <button class="tab" data-view="kalender">Kalender</button>
       <button class="tab" data-view="statistik">Statistik</button>
     </nav>
     <div class="header-right">
@@ -106,6 +107,7 @@
         </select>
         <button id="filter-reset" class="btn btn-ghost">Zurücksetzen</button>
       </div>
+      <button id="btn-qr" class="btn" title="QR-Etiketten für die gefilterte Geräteliste erzeugen">🏷 QR-Etiketten</button>
       <button id="btn-fields" class="btn admin-only" title="Eigene Felder verwalten">⚙ Eigene Felder</button>
       <button id="btn-new-device" class="btn btn-primary admin-only">+ Neues Gerät</button>
     </section>
@@ -194,6 +196,22 @@
     </section>
   </main>
 
+  <!-- ===== Ansicht: Kalender ===== -->
+  <main id="view-kalender" class="view hidden">
+    <section class="toolbar">
+      <div class="filters">
+        <select id="kal-standort"><option value="">Alle Standorte</option></select>
+        <select id="kal-abteilung"><option value="">Alle Abteilungen</option></select>
+        <select id="kal-art"><option value="">Alle Prüfarten</option></select>
+      </div>
+      <button id="btn-erinnerung" class="btn">✉ Erinnerungs-E-Mail</button>
+      <button id="btn-ics" class="btn btn-primary">📅 Outlook-Export (ICS)</button>
+    </section>
+    <p class="stat-note">Alle anstehenden Prüfungen und Wartungen der nächsten 12 Monate. Der ICS-Export lässt
+    sich in Outlook oder jeden anderen Kalender importieren – inklusive Erinnerung 7 Tage vor Fälligkeit.</p>
+    <section id="kalender-liste"></section>
+  </main>
+
   <footer class="app-footer">
     <img src="assets/logo.svg" alt="Avidia Pharma" class="footer-logo">
     <p>© <span class="copyright-jahr"></span> Dietz-Engineering · Alle Rechte vorbehalten ·
@@ -230,11 +248,17 @@
         <label>E-Mail (Vertrieb)<input type="email" id="f-sales-email"></label>
         <label>Anschaffungsdatum<input type="date" id="f-purchase"></label>
         <label>Garantieende<input type="date" id="f-warranty"></label>
-        <label>Wartungsintervall (Monate)<input type="number" id="f-interval" min="1" max="60" placeholder="z. B. 12"></label>
-        <label>Letzte Wartung<input type="date" id="f-lastmaint"></label>
         <label>Netzwerkadresse (IP/Host)<input type="text" id="f-network" placeholder="z. B. 10.12.4.21"></label>
         <div id="custom-fields-form" style="display: contents;"></div>
+        <div class="pruef-editor-wrap">
+          <span class="pruef-editor-titel">Prüfungen &amp; Wartungen (je Prüfart eigenes Intervall)</span>
+          <div id="pruef-editor"></div>
+          <button type="button" id="pruef-add" class="btn btn-sm">+ Prüfart hinzufügen</button>
+        </div>
       </div>
+      <datalist id="dl-pruefart">
+        <option value="Wartung"><option value="STK"><option value="MTK"><option value="Validierung">
+      </datalist>
       <datalist id="dl-category"></datalist>
       <datalist id="dl-manufacturer"></datalist>
       <datalist id="dl-location"></datalist>
@@ -274,6 +298,25 @@
   </div>
 </div>
 
+<!-- ===== Modal: QR-Etiketten ===== -->
+<div id="modal-qr" class="modal-backdrop hidden">
+  <div class="modal modal-lg">
+    <div class="modal-head">
+      <h2>QR-Etiketten</h2>
+      <div>
+        <button class="btn btn-primary" onclick="window.print()">🖨 Etiketten drucken</button>
+        <button class="modal-close" data-close="modal-qr">✕</button>
+      </div>
+    </div>
+    <div class="modal-body">
+      <p class="stat-note qr-hinweis">Etiketten ausdrucken und an den Geräten anbringen – der Scan mit dem
+      Handy öffnet direkt die Detailseite des Geräts (Defekt melden, Kommentar schreiben, Status einsehen).
+      Erzeugt werden Etiketten für die aktuell gefilterte Geräteliste.</p>
+      <div id="qr-grid" class="qr-grid"></div>
+    </div>
+  </div>
+</div>
+
 <!-- ===== Modal: Gerätedetails ===== -->
 <div id="modal-detail" class="modal-backdrop hidden">
   <div class="modal modal-lg">
@@ -285,6 +328,7 @@
   </div>
 </div>
 
+<script src="js/vendor/qrcode.js"></script>
 <script src="js/config.js"></script>
 <script src="js/data.js"></script>
 <script src="js/monitoring.js"></script>

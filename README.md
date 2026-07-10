@@ -36,8 +36,15 @@ Pro Gerät: Name, Typ/Kategorie, Hersteller, Modell, Seriennummer, interne
 Inventarnummer, Standort, Abteilung, **Raum**, **zuständiges Team**,
 Distributor mit **zwei getrennten Kontakten** – technischer Service
 (Hotline für Defekte) und Vertrieb/Außendienst (für Angebote und
-Beschaffung) – sowie Anschaffungsdatum, Garantieende, Wartungsintervall und
-letzte Wartung. Die **nächste Wartungsfälligkeit wird automatisch berechnet**.
+Beschaffung) – sowie Anschaffungsdatum und Garantieende.
+
+**Prüfarten nach MPBetreibV:** Jedes Gerät kann mehrere Prüfzyklen mit
+eigenem Intervall haben – Herstellerwartung, sicherheitstechnische
+Kontrolle (STK), messtechnische Kontrolle (MTK), Validierung oder frei
+benannte Prüfarten. Jede Fälligkeit wird automatisch berechnet; in der
+Detailansicht lässt sich jede Prüfung einzeln als „durchgeführt"
+abhaken (mit Systemeintrag im Verlauf). Die Ampel wird gelb, sobald
+irgendeine Prüfung fällig wird.
 
 ### 2. Statusverwaltung (Ampel)
 - 🟢 **Funktionsfähig**
@@ -93,9 +100,28 @@ Statuswechsel und Wartungen erscheinen automatisch als Systemeinträge – so
 entsteht eine **lückenlose Gerätehistorie** (hilfreich für Audits, z. B. nach
 ISO 15189 / MPBetreibV).
 
-### 5. Benachrichtigungen
-Glocken-Symbol mit Zähler: Wartung fällig oder überfällig sowie Geräte, die
-länger als 7 Tage defekt sind.
+### 5. Benachrichtigungen, Kalender & Erinnerungen
+Glocken-Symbol mit Zähler: fällige/überfällige Prüfungen (je Prüfart) sowie
+Geräte, die länger als 7 Tage defekt sind.
+
+Die **Kalender-Ansicht** listet alle anstehenden Prüfungen der nächsten
+12 Monate – überfällige zuerst, dann nach Monat gruppiert, filterbar nach
+Standort, Abteilung und Prüfart. Dazu:
+- **Outlook-Export (ICS):** alle Fälligkeiten als Kalenderdatei mit
+  Erinnerung 7 Tage vor Termin – importierbar in Outlook und jeden anderen
+  Kalender
+- **Erinnerungs-E-Mail:** ein Klick erstellt eine fertige E-Mail mit allen
+  überfälligen und in 30 Tagen fälligen Prüfungen (z. B. an die
+  Teamleitung). Ein vollautomatischer wöchentlicher Versand braucht ein
+  Backend und ist als Ausbauschritt vorgesehen.
+
+### QR-Code-Etiketten
+„🏷 QR-Etiketten" erzeugt einen druckbaren Etikettenbogen für die aktuell
+gefilterte Geräteliste (QR-Code + Name, Modell, Inventar-/Seriennummer,
+Standort/Raum). Am Gerät angebracht, öffnet der Scan mit dem Handy direkt
+die Detailseite – Defekt melden oder Kommentar schreiben ohne Suchen.
+(QR-Erzeugung lokal über die MIT-lizenzierte Bibliothek
+`js/vendor/qrcode.js`, keine externen Dienste.)
 
 ### 6. Nutzer & Rechte
 Einfaches Login mit Namen und zwei Rollen:
@@ -110,6 +136,10 @@ Sichtschutz für die öffentliche Preview, keine echte Zugriffskontrolle –
 die käme mit Supabase-Auth als Ausbauschritt.
 
 ### 7. Statistik & Auswertung
+- **Reparaturkosten:** Beim Abschließen einer Reparatur können die Kosten
+  erfasst werden; sie erscheinen pro Gerät, pro Hersteller und als Summe im
+  Zeitraum – das zentrale Argument für Beschaffungsanträge
+  („4 Ausfälle, 23 Stillstandstage, 6.800 € in 2 Jahren")
 - **Ausfallstatistik pro Hersteller** – Defekte, Ausfalltage, Ø Ausfalldauer;
   normalisiert auf Gerätebestand („Defekte pro Gerät") und Alter
   („Defekte pro Betriebsjahr"), damit Hersteller mit vielen oder alten Geräten

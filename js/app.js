@@ -100,6 +100,12 @@ function zeigeApp() {
   $('#user-role').textContent = nutzer.role === 'admin' ? 'Admin' : 'Mitarbeiter';
   $$('.admin-only').forEach((el) => el.classList.toggle('hidden', nutzer.role !== 'admin'));
   renderAlles();
+  // Deep-Link aus QR-Code (?geraet=ID): Detailansicht direkt öffnen
+  const qrId = Number(new URLSearchParams(location.search).get('geraet'));
+  if (qrId && findeGeraet(qrId)) {
+    try { history.replaceState(null, '', location.pathname); } catch (e) { /* file:// o. ä. */ }
+    oeffneDetail(qrId);
+  }
 }
 
 function istAdmin() { return nutzer && nutzer.role === 'admin'; }
@@ -124,7 +130,7 @@ function gefilterteListe() {
   const wert = (g) => {
     switch (key) {
       case 'status': return STATUS_RANG[effektiverStatus(g)];
-      case 'nextMaint': { const n = naechsteWartung(g); return n || '9999-12-31'; }
+      case 'nextMaint': { const f = naechsteFaelligkeit(g); return f ? f.datum : '9999-12-31'; }
       case 'defectDays': return -(defektTage(g) ?? -1);
       default: return (g[key] || '').toLowerCase();
     }
@@ -153,12 +159,17 @@ function renderKacheln() {
 }
 
 function wartungZelle(g) {
-  const nw = naechsteWartung(g);
-  if (!nw) return '<small>kein Intervall</small>';
-  const t = wartungTageVerbleibend(g);
-  if (t < 0) return `<span class="maint-overdue">${formatDatum(nw)}<br><small>überfällig seit ${-t} Tagen</small></span>`;
-  if (t <= WARTUNG_VORLAUF_TAGE) return `<span class="maint-soon">${formatDatum(nw)}<br><small>in ${t} Tagen</small></span>`;
-  return `${formatDatum(nw)}<br><small>in ${t} Tagen</small>`;
+  const f = naechsteFaelligkeit(g);
+  if (!f) return '<small>keine Prüfungen</small>';
+  const label = `${formatDatum(f.datum)} <small>(${esc(f.art)})</small>`;
+  if (f.tage < 0) return `<span class="maint-overdue">${label}<br><small>überfällig seit ${-f.tage} Tagen</small></span>`;
+  if (f.tage <= WARTUNG_VORLAUF_TAGE) return `<span class="maint-soon">${label}<br><small>in ${f.tage} Tagen</small></span>`;
+  return `${label}<br><small>in ${f.tage} Tagen</small>`;
+}
+
+/** Betrag als Euro formatieren. */
+function eur(n) {
+  return (n || 0).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
 }
 
 function ausfallZelle(g) {
@@ -262,6 +273,10 @@ function fuelleFilterOptionen() {
   setze('#stat-standort', standorte, $('#stat-standort').value);
   setze('#stat-abteilung', abteilungen, $('#stat-abteilung').value);
   setze('#stat-hersteller', hersteller, $('#stat-hersteller').value);
+  setze('#kal-standort', standorte, $('#kal-standort').value);
+  setze('#kal-abteilung', abteilungen, $('#kal-abteilung').value);
+  const pruefarten = new Set(daten.devices.flatMap((g) => (g.pruefungen || []).map((p) => p.art)));
+  setze('#kal-art', pruefarten, $('#kal-art').value);
 
   // Datalists im Formular
   const dl = (id, werte) => { $(id).innerHTML = [...werte].map((w) => `<option value="${esc(w)}">`).join(''); };
@@ -279,11 +294,12 @@ function fuelleFilterOptionen() {
 function berechneBenachrichtigungen() {
   const liste = [];
   for (const g of daten.devices) {
-    const t = wartungTageVerbleibend(g);
-    if (t !== null && t < 0) {
-      liste.push({ id: g.id, icon: '🔴', text: `${g.name}: Wartung seit ${-t} Tagen überfällig` });
-    } else if (t !== null && t <= WARTUNG_VORLAUF_TAGE && g.status !== 'ausser_betrieb') {
-      liste.push({ id: g.id, icon: '🟡', text: `${g.name}: Wartung fällig in ${t} Tagen (${formatDatum(naechsteWartung(g))})` });
+    for (const f of faelligkeiten(g)) {
+      if (f.tage < 0) {
+        liste.push({ id: g.id, icon: '🔴', text: `${g.name}: ${f.art} seit ${-f.tage} Tagen überfällig` });
+      } else if (f.tage <= WARTUNG_VORLAUF_TAGE && g.status !== 'ausser_betrieb') {
+        liste.push({ id: g.id, icon: '🟡', text: `${g.name}: ${f.art} fällig in ${f.tage} Tagen (${formatDatum(f.datum)})` });
+      }
     }
     const dt = defektTage(g);
     if (dt !== null && dt >= DEFEKT_ALARM_TAGE) {
@@ -359,7 +375,6 @@ function renderDetail() {
   if (g.status !== 'defekt') aktionen.push('<button class="btn btn-danger btn-status" data-aktion="defekt">⚠ Defekt melden</button>');
   if (g.status === 'defekt') aktionen.push('<button class="btn btn-status" data-aktion="repariert">✔ Repariert / wieder funktionsfähig</button>');
   if (g.status === 'defekt' && g.distEmail) aktionen.push(`<a class="btn btn-status" id="btn-service-mail" href="${serviceMailLink(g)}">✉ Service kontaktieren</a>`);
-  aktionen.push('<button class="btn btn-status" data-aktion="wartung">🛠 Wartung durchgeführt</button>');
   if (g.status !== 'ausser_betrieb') aktionen.push('<button class="btn btn-status" data-aktion="ausser_betrieb">⏸ Außer Betrieb setzen</button>');
   else aktionen.push('<button class="btn btn-status" data-aktion="in_betrieb">▶ Wieder in Betrieb nehmen</button>');
   if (istAdmin()) {
@@ -367,8 +382,25 @@ function renderDetail() {
     aktionen.push('<button class="btn btn-danger btn-status" data-aktion="loeschen">🗑 Löschen</button>');
   }
 
-  const nw = naechsteWartung(g);
   const logSortiert = [...g.log].sort((a, b) => b.ts - a.ts); // neueste zuerst
+  const gesamtkosten = defektEreignisse(g).reduce((s, e) => s + (e.kosten || 0), 0);
+
+  const pruefZeilen = (g.pruefungen || []).map((p, i) => {
+    const nd = pruefungNaechste(p);
+    const tage = nd ? tageDiff(isoDatum(heute()), nd) : null;
+    const status = nd
+      ? (tage < 0 ? `<span class="maint-overdue">überfällig seit ${-tage} Tagen</span>`
+        : tage <= WARTUNG_VORLAUF_TAGE ? `<span class="maint-soon">in ${tage} Tagen</span>`
+        : `in ${tage} Tagen`)
+      : '<small>noch nie durchgeführt</small>';
+    return `<tr>
+      <td><strong>${esc(p.art)}</strong></td>
+      <td>alle ${p.intervall} Monate</td>
+      <td>${formatDatum(p.letzte)}</td>
+      <td>${nd ? formatDatum(nd) : '–'}<br><small>${status}</small></td>
+      <td><button type="button" class="btn btn-sm pruef-done" data-pruef="${i}">✓ durchgeführt</button></td>
+    </tr>`;
+  }).join('');
 
   $('#detail-body').innerHTML = `
     <dl class="detail-grid">
@@ -380,8 +412,6 @@ function renderDetail() {
       <div><dt>Abteilung</dt><dd>${esc(g.department)}${g.team ? ' · ' + esc(g.team) : ''}</dd></div>
       <div><dt>Anschaffung</dt><dd>${formatDatum(g.purchaseDate)}</dd></div>
       <div><dt>Garantieende</dt><dd>${formatDatum(g.warrantyEnd)}</dd></div>
-      <div><dt>Wartungsintervall</dt><dd>${g.maintenanceInterval ? 'alle ' + g.maintenanceInterval + ' Monate' : '–'}</dd></div>
-      <div><dt>Letzte / nächste Wartung</dt><dd>${formatDatum(g.lastMaintenance)} / ${nw ? formatDatum(nw) : '–'}</dd></div>
       <div><dt>Distributor</dt><dd>${esc(g.distributor || '–')}</dd></div>
       <div><dt>Service-Kontakt (Technik)</dt><dd>${g.distContact ? esc(g.distContact) + ' · ' : ''}${esc(g.distPhone || '–')}${g.distEmail ? ' · <a href="mailto:' + esc(g.distEmail) + '">' + esc(g.distEmail) + '</a>' : ''}</dd></div>
       <div><dt>Vertrieb / Außendienst</dt><dd>${g.salesName || g.salesPhone || g.salesEmail ? `${esc(g.salesName || '')}${g.salesPhone ? ' · ' + esc(g.salesPhone) : ''}${g.salesEmail ? ' · <a href="mailto:' + esc(g.salesEmail) + '">' + esc(g.salesEmail) + '</a>' : ''}` : '–'}</dd></div>
@@ -391,9 +421,17 @@ function renderDetail() {
           : ' <small>· Online-Abfrage vorbereitet (Monitoring-Dienst noch nicht angebunden)</small>')
         : '–'}</dd></div>
       ${dt !== null ? `<div><dt>Ausfalldauer</dt><dd class="defect-days">defekt seit ${dt === 0 ? 'heute' : dt + ' Tag' + (dt === 1 ? '' : 'en')} (gemeldet ${formatDatum(g.defectSince)})</dd></div>` : ''}
-      <div><dt>Bisherige Defekte</dt><dd>${defektEreignisse(g).length}</dd></div>
+      <div><dt>Bisherige Defekte</dt><dd>${defektEreignisse(g).length}${gesamtkosten ? ' · Reparaturkosten gesamt: ' + eur(gesamtkosten) : ''}</dd></div>
       ${daten.customFields.map((f) => `<div><dt>${esc(f.label)}</dt><dd>${formatCustomWert(f, (g.custom || {})[f.id])}</dd></div>`).join('')}
     </dl>
+    <div class="detail-section pruef-section">
+      <h3>Prüfungen & Wartungen (MPBetreibV)</h3>
+      ${pruefZeilen
+        ? `<div class="table-wrap"><table class="pruef-table">
+            <thead><tr><th>Prüfart</th><th>Intervall</th><th>Zuletzt</th><th>Nächste Fälligkeit</th><th></th></tr></thead>
+            <tbody>${pruefZeilen}</tbody></table></div>`
+        : '<p><small>Keine Prüfzyklen hinterlegt – über „Bearbeiten" ergänzen.</small></p>'}
+    </div>
     <div class="detail-actions">${aktionen.join('')}</div>
     <div class="detail-section">
       <h3>Verlauf & Kommentare</h3>
@@ -423,6 +461,17 @@ function renderDetail() {
   $$('#detail-body .btn-status').forEach((btn) => {
     if (btn.dataset.aktion) btn.addEventListener('click', () => statusAktion(g, btn.dataset.aktion));
   });
+
+  // Prüfung als durchgeführt eintragen
+  $$('#detail-body .pruef-done').forEach((btn) => btn.addEventListener('click', () => {
+    const p = g.pruefungen[Number(btn.dataset.pruef)];
+    if (!p) return;
+    p.letzte = isoDatum(heute());
+    systemEintrag(g, `${p.art} durchgeführt (${nutzer.name}). Nächste Fälligkeit: ${formatDatum(pruefungNaechste(p))}.`);
+    speichereDaten(daten);
+    renderDetail();
+    renderAlles(false);
+  }));
 
   // Störungs-E-Mail: Klick im Verlauf dokumentieren (mailto öffnet das Mailprogramm)
   const mailBtn = $('#btn-service-mail');
@@ -461,19 +510,21 @@ function statusAktion(g, aktion) {
       break;
     }
     case 'repariert': {
+      // Reparaturkosten optional erfassen (fließen in die Statistik ein)
+      let kosten = null;
+      const eingabe = prompt('Reparaturkosten in € (optional, leer lassen wenn unbekannt/kostenfrei):');
+      if (eingabe) {
+        const zahl = parseFloat(eingabe.replace(/\./g, '').replace(',', '.'));
+        if (!isNaN(zahl) && zahl >= 0) kosten = zahl;
+      }
       if (g.defectSince) {
         g.defectHistory = g.defectHistory || [];
-        g.defectHistory.push({ start: g.defectSince, end: isoDatum(heute()) });
+        g.defectHistory.push({ start: g.defectSince, end: isoDatum(heute()), kosten });
       }
       const dauer = g.defectSince ? tageDiff(g.defectSince, Date.now()) : 0;
       g.status = 'ok';
       g.defectSince = null;
-      systemEintrag(g, `Status geändert: Defekt → Funktionsfähig (${nutzer.name}). Ausfalldauer: ${dauer} Tag${dauer === 1 ? '' : 'e'}.`);
-      break;
-    }
-    case 'wartung': {
-      g.lastMaintenance = isoDatum(heute());
-      systemEintrag(g, `Wartung durchgeführt (${nutzer.name}). Nächste Fälligkeit: ${formatDatum(naechsteWartung(g))}.`);
+      systemEintrag(g, `Status geändert: Defekt → Funktionsfähig (${nutzer.name}). Ausfalldauer: ${dauer} Tag${dauer === 1 ? '' : 'e'}.${kosten !== null ? ' Reparaturkosten: ' + eur(kosten) + '.' : ''}`);
       break;
     }
     case 'ausser_betrieb': {
@@ -542,6 +593,31 @@ function formatCustomWert(feld, wert) {
 
 /* ===================== Formular (Admin) ===================== */
 
+/** Eine Zeile des Prüfarten-Editors erzeugen. */
+function pruefEditorZeile(p) {
+  return `<div class="pruef-row">
+    <input type="text" class="pe-art" list="dl-pruefart" placeholder="Prüfart" value="${esc(p?.art || '')}" maxlength="30">
+    <input type="number" class="pe-intervall" min="1" max="120" placeholder="Monate" value="${p?.intervall || ''}">
+    <input type="date" class="pe-letzte" title="Zuletzt durchgeführt" value="${p?.letzte || ''}">
+    <button type="button" class="btn btn-sm pe-del" title="Prüfart entfernen">✕</button>
+  </div>`;
+}
+
+function renderPruefEditor(pruefungen) {
+  $('#pruef-editor').innerHTML = pruefungen.map(pruefEditorZeile).join('');
+  $$('#pruef-editor .pe-del').forEach((btn) =>
+    btn.addEventListener('click', () => btn.closest('.pruef-row').remove()));
+}
+
+/** Prüfarten aus dem Editor einsammeln (Zeilen ohne Art/Intervall werden ignoriert). */
+function samplePruefungen() {
+  return $$('#pruef-editor .pruef-row').map((row) => ({
+    art: row.querySelector('.pe-art').value.trim(),
+    intervall: Number(row.querySelector('.pe-intervall').value) || null,
+    letzte: row.querySelector('.pe-letzte').value || null,
+  })).filter((p) => p.art && p.intervall);
+}
+
 function oeffneFormular(g) {
   $('#form-title').textContent = g ? 'Gerät bearbeiten' : 'Neues Gerät';
   $('#f-id').value = g ? g.id : '';
@@ -564,9 +640,8 @@ function oeffneFormular(g) {
   $('#f-sales-email').value = g?.salesEmail || '';
   $('#f-purchase').value = g?.purchaseDate || '';
   $('#f-warranty').value = g?.warrantyEnd || '';
-  $('#f-interval').value = g?.maintenanceInterval || '';
-  $('#f-lastmaint').value = g?.lastMaintenance || '';
   $('#f-network').value = g?.networkAddress || '';
+  renderPruefEditor(g?.pruefungen?.length ? g.pruefungen : [{ art: 'Wartung', intervall: 12, letzte: null }]);
   // Eigene Felder dynamisch einfügen
   $('#custom-fields-form').innerHTML = daten.customFields.map((f) => `
     <label>${esc(f.label)}<input type="${f.type}" data-field="${esc(f.id)}" value="${esc((g?.custom || {})[f.id] || '')}"></label>`).join('');
@@ -596,9 +671,8 @@ function speichereFormular(ev) {
     salesEmail: $('#f-sales-email').value.trim(),
     purchaseDate: $('#f-purchase').value || null,
     warrantyEnd: $('#f-warranty').value || null,
-    maintenanceInterval: $('#f-interval').value ? Number($('#f-interval').value) : null,
-    lastMaintenance: $('#f-lastmaint').value || null,
     networkAddress: $('#f-network').value.trim(),
+    pruefungen: samplePruefungen(),
   };
   // Eigene Felder: bestehende Werte übernehmen, sichtbare Eingaben aktualisieren
   const custom = { ...(id ? (findeGeraet(id).custom || {}) : {}) };
@@ -640,6 +714,7 @@ function renderStatistik() {
   const geraete = gefilterteGeraete(daten.devices, filter);
   const abgeschlossen = events.filter((e) => e.end);
   const ausfalltage = events.reduce((s, e) => s + e.dauerTage, 0);
+  const kostenGesamt = events.reduce((s, e) => s + (e.kosten || 0), 0);
   const mittlereRep = abgeschlossen.length
     ? abgeschlossen.reduce((s, e) => s + e.dauerTage, 0) / abgeschlossen.length : 0;
 
@@ -647,7 +722,8 @@ function renderStatistik() {
     <div class="tile"><div class="tile-num">${geraete.length}</div><div class="tile-label">Geräte im Filter</div></div>
     <div class="tile t-red"><div class="tile-num">${events.length}</div><div class="tile-label">Defekte im Zeitraum</div></div>
     <div class="tile t-yellow"><div class="tile-num">${ausfalltage}</div><div class="tile-label">Ausfalltage gesamt</div></div>
-    <div class="tile"><div class="tile-num">${f1(mittlereRep)}</div><div class="tile-label">Ø Reparaturzeit (Tage)</div></div>`;
+    <div class="tile"><div class="tile-num">${f1(mittlereRep)}</div><div class="tile-label">Ø Reparaturzeit (Tage)</div></div>
+    <div class="tile t-red"><div class="tile-num">${eur(kostenGesamt)}</div><div class="tile-label">Reparaturkosten im Zeitraum</div></div>`;
 
   balkendiagramm($('#chart-monat'), statMonatsverlauf(daten.devices, filter));
 
@@ -656,26 +732,28 @@ function renderStatistik() {
   $('#table-hersteller').innerHTML = `
     <thead><tr><th>Hersteller</th><th class="num">Geräte</th><th class="num">Defekte</th>
     <th class="num">Defekte / Gerät</th><th class="num">Defekte / Betriebsjahr</th>
-    <th class="num">Ausfalltage</th><th class="num">Ø Ausfalldauer</th></tr></thead><tbody>` +
+    <th class="num">Ausfalltage</th><th class="num">Ø Ausfalldauer</th><th class="num">Reparaturkosten</th></tr></thead><tbody>` +
     hs.map((s, i) => `<tr>
       <td class="${i === 0 && s.defekte > 0 ? 'rank-1' : ''}">${esc(s.hersteller)}</td>
       <td class="num">${s.geraete}</td><td class="num">${s.defekte}</td>
       <td class="num">${f1(s.defekteProGeraet)}</td><td class="num">${f1(s.defekteProBetriebsjahr)}</td>
       <td class="num">${s.ausfalltage}</td><td class="num">${f1(s.mittlereAusfalldauer)} Tage</td>
+      <td class="num">${eur(s.kosten)}</td>
     </tr>`).join('') + '</tbody>';
 
   // --- Top-Ausfallgeräte ---
   const gs = statGeraete(daten.devices, filter);
   $('#table-geraete').innerHTML = `
     <thead><tr><th>#</th><th>Gerät</th><th>Hersteller</th><th>Standort</th>
-    <th class="num">Defekte</th><th class="num">Ausfalltage</th><th class="num">Alter (Jahre)</th><th class="num">Defekte / Betriebsjahr</th></tr></thead><tbody>` +
+    <th class="num">Defekte</th><th class="num">Ausfalltage</th><th class="num">Reparaturkosten</th><th class="num">Alter (Jahre)</th><th class="num">Defekte / Betriebsjahr</th></tr></thead><tbody>` +
     (gs.length ? gs.map((r, i) => `<tr>
       <td class="${i === 0 ? 'rank-1' : ''}">${i + 1}</td>
       <td>${esc(r.geraet.name)}<br><small>${esc(r.geraet.model || '')} · ${esc(r.geraet.department)}</small></td>
       <td>${esc(r.geraet.manufacturer)}</td><td>${esc(r.geraet.location)}</td>
       <td class="num">${r.defekte}</td><td class="num">${r.ausfalltage}</td>
+      <td class="num">${eur(r.kosten)}</td>
       <td class="num">${f1(r.alterJahre)}</td><td class="num">${f1(r.defekteProBetriebsjahr)}</td>
-    </tr>`).join('') : '<tr><td colspan="8"><small>Keine Defekte im gewählten Zeitraum.</small></td></tr>') + '</tbody>';
+    </tr>`).join('') : '<tr><td colspan="9"><small>Keine Defekte im gewählten Zeitraum.</small></td></tr>') + '</tbody>';
 
   // --- Gerätetypen ---
   const ts = statTypen(daten.devices, filter);
@@ -703,14 +781,14 @@ function initCsvExporte() {
   $('#csv-hersteller').addEventListener('click', () => {
     const hs = statHersteller(daten.devices, statFilter());
     exportiereCSV('ausfallstatistik-hersteller.csv',
-      ['Hersteller', 'Geräte', 'Defekte', 'Defekte pro Gerät', 'Defekte pro Betriebsjahr', 'Ausfalltage', 'Mittlere Ausfalldauer (Tage)'],
-      hs.map((s) => [s.hersteller, s.geraete, s.defekte, f1(s.defekteProGeraet), f1(s.defekteProBetriebsjahr), s.ausfalltage, f1(s.mittlereAusfalldauer)]));
+      ['Hersteller', 'Geräte', 'Defekte', 'Defekte pro Gerät', 'Defekte pro Betriebsjahr', 'Ausfalltage', 'Mittlere Ausfalldauer (Tage)', 'Reparaturkosten (EUR)'],
+      hs.map((s) => [s.hersteller, s.geraete, s.defekte, f1(s.defekteProGeraet), f1(s.defekteProBetriebsjahr), s.ausfalltage, f1(s.mittlereAusfalldauer), f1(s.kosten)]));
   });
   $('#csv-geraete').addEventListener('click', () => {
     const gs = statGeraete(daten.devices, statFilter());
     exportiereCSV('top-ausfallgeraete.csv',
-      ['Rang', 'Gerät', 'Modell', 'Hersteller', 'Standort', 'Abteilung', 'Defekte', 'Ausfalltage', 'Alter (Jahre)', 'Defekte pro Betriebsjahr'],
-      gs.map((r, i) => [i + 1, r.geraet.name, r.geraet.model, r.geraet.manufacturer, r.geraet.location, r.geraet.department, r.defekte, r.ausfalltage, f1(r.alterJahre), f1(r.defekteProBetriebsjahr)]));
+      ['Rang', 'Gerät', 'Modell', 'Hersteller', 'Standort', 'Abteilung', 'Defekte', 'Ausfalltage', 'Reparaturkosten (EUR)', 'Alter (Jahre)', 'Defekte pro Betriebsjahr'],
+      gs.map((r, i) => [i + 1, r.geraet.name, r.geraet.model, r.geraet.manufacturer, r.geraet.location, r.geraet.department, r.defekte, r.ausfalltage, f1(r.kosten), f1(r.alterJahre), f1(r.defekteProBetriebsjahr)]));
   });
   $('#csv-typen').addEventListener('click', () => {
     const ts = statTypen(daten.devices, statFilter());
@@ -724,6 +802,138 @@ function initCsvExporte() {
       ['Distributor', 'Abgeschlossene Reparaturen', 'Mittlere Reparaturzeit (Tage)', 'Reparaturtage gesamt'],
       ds.map((s) => [s.distributor, s.reparaturen, f1(s.mittlereDauer), s.tageGesamt]));
   });
+}
+
+/* ===================== QR-Etiketten ===================== */
+
+/** Deep-Link zur Detailansicht eines Geräts (Inhalt der QR-Codes). */
+function qrUrl(g) {
+  return location.href.split(/[?#]/)[0] + '?geraet=' + g.id;
+}
+
+function qrSvg(g) {
+  const qr = qrcode(0, 'M');
+  qr.addData(qrUrl(g));
+  qr.make();
+  return qr.createSvgTag({ cellSize: 3, margin: 2 });
+}
+
+function oeffneQrModal() {
+  const liste = gefilterteListe();
+  $('#qr-grid').innerHTML = liste.map((g) => `
+    <div class="qr-label">
+      ${qrSvg(g)}
+      <div class="qr-text">
+        <strong>${esc(g.name)}</strong>
+        <span>${esc(g.manufacturer)} ${esc(g.model || '')}</span>
+        <span>Inv. ${esc(g.inventoryNo || '–')} · SN ${esc(g.serial || '–')}</span>
+        <span>${esc(g.location)}${g.room ? ' · Raum ' + esc(g.room) : ''}</span>
+      </div>
+    </div>`).join('') || '<p class="empty-hint">Keine Geräte im aktuellen Filter.</p>';
+  document.body.classList.add('print-qr');
+  $('#modal-qr').classList.remove('hidden');
+}
+
+/* ===================== Kalender (Fälligkeiten) ===================== */
+
+function kalenderEintraege() {
+  const standort = $('#kal-standort').value;
+  const abteilung = $('#kal-abteilung').value;
+  const art = $('#kal-art').value;
+  const items = [];
+  for (const g of daten.devices) {
+    if (g.status === 'ausser_betrieb') continue;
+    if (standort && g.location !== standort) continue;
+    if (abteilung && g.department !== abteilung) continue;
+    for (const f of faelligkeiten(g)) {
+      if (art && f.art !== art) continue;
+      if (f.tage > 365) continue; // Horizont: 12 Monate
+      items.push({ g, ...f });
+    }
+  }
+  return items.sort((a, b) => a.tage - b.tage);
+}
+
+const MONATSNAMEN = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+
+function renderKalender() {
+  const items = kalenderEintraege();
+  if (!items.length) {
+    $('#kalender-liste').innerHTML = '<p class="empty-hint">Keine anstehenden Prüfungen im gewählten Filter. 🎉</p>';
+    return;
+  }
+  // Gruppieren: Überfällig zuerst, dann pro Monat
+  const gruppen = new Map();
+  for (const i of items) {
+    const key = i.tage < 0 ? '⚠ Überfällig' : (() => {
+      const d = new Date(i.datum);
+      return `${MONATSNAMEN[d.getMonth()]} ${d.getFullYear()}`;
+    })();
+    if (!gruppen.has(key)) gruppen.set(key, []);
+    gruppen.get(key).push(i);
+  }
+  $('#kalender-liste').innerHTML = [...gruppen.entries()].map(([titel, eintraege]) => `
+    <div class="kal-gruppe">
+      <h2 class="kal-monat ${titel.startsWith('⚠') ? 'kal-overdue' : ''}">${esc(titel)} <span class="group-count">${eintraege.length} Prüfung${eintraege.length === 1 ? '' : 'en'}</span></h2>
+      ${eintraege.map((i) => `
+        <div class="kal-item" data-id="${i.g.id}">
+          <span class="kal-datum ${i.tage < 0 ? 'maint-overdue' : i.tage <= WARTUNG_VORLAUF_TAGE ? 'maint-soon' : ''}">${formatDatum(i.datum)}</span>
+          <span class="kal-art">${esc(i.art)}</span>
+          <span class="kal-geraet"><strong>${esc(i.g.name)}</strong> <small>· ${esc(i.g.location)} · ${esc(i.g.department)}</small></span>
+          <span class="kal-tage">${i.tage < 0 ? `<span class="maint-overdue">seit ${-i.tage} Tagen überfällig</span>` : `in ${i.tage} Tagen`}</span>
+          <button class="btn btn-sm">Details</button>
+        </div>`).join('')}
+    </div>`).join('');
+  $$('#kalender-liste .kal-item').forEach((el) =>
+    el.querySelector('.btn').addEventListener('click', () => oeffneDetail(Number(el.dataset.id))));
+}
+
+/** ICS-Sonderzeichen maskieren. */
+function icsText(s) {
+  return String(s || '').replace(/\\/g, '\\\\').replace(/[,;]/g, '\\$&').replace(/\n/g, '\\n');
+}
+
+/** Fälligkeiten als Kalenderdatei (ICS) exportieren – importierbar in Outlook & Co. */
+function exportiereICS() {
+  const items = kalenderEintraege();
+  const zeilen = [
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Dietz-Engineering//Geraetefuhrpark//DE',
+    'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
+  ];
+  for (const i of items) {
+    const d = i.datum.replace(/-/g, '');
+    zeilen.push(
+      'BEGIN:VEVENT',
+      `UID:pruefung-${i.g.id}-${encodeURIComponent(i.art)}-${d}@geraetefuhrpark`,
+      `DTSTART;VALUE=DATE:${d}`,
+      `SUMMARY:${icsText(`${i.art} fällig: ${i.g.name}`)}`,
+      `DESCRIPTION:${icsText(`${i.g.manufacturer} ${i.g.model || ''} · Inv. ${i.g.inventoryNo || '–'} · SN ${i.g.serial || '–'}`)}`,
+      `LOCATION:${icsText(`${i.g.location}${i.g.room ? ', Raum ' + i.g.room : ''}`)}`,
+      'BEGIN:VALARM', 'ACTION:DISPLAY',
+      `DESCRIPTION:${icsText(`${i.art} fällig: ${i.g.name}`)}`,
+      'TRIGGER:-P7D', 'END:VALARM',
+      'END:VEVENT');
+  }
+  zeilen.push('END:VCALENDAR');
+  const blob = new Blob([zeilen.join('\r\n')], { type: 'text/calendar;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'pruefungen-geraetefuhrpark.ics';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+/** Erinnerungs-E-Mail mit allen überfälligen / bald fälligen Prüfungen vorbereiten. */
+function erinnerungsMail() {
+  const items = kalenderEintraege().filter((i) => i.tage <= WARTUNG_VORLAUF_TAGE);
+  if (!items.length) { alert('Aktuell sind keine Prüfungen fällig oder bald fällig. 🎉'); return; }
+  const body = [
+    'Hallo zusammen,', '',
+    'folgende Prüfungen/Wartungen sind überfällig oder werden in den nächsten 30 Tagen fällig:', '',
+    ...items.map((i) => `- ${formatDatum(i.datum)} · ${i.art} · ${i.g.name} (${i.g.location}, ${i.g.department})${i.tage < 0 ? ` – ÜBERFÄLLIG seit ${-i.tage} Tagen` : ''}`),
+    '', `Stand: ${formatDatum(isoDatum(heute()))} · Gerätefuhrpark Pathologisches Institut`,
+  ].join('\n');
+  location.href = `mailto:?subject=${encodeURIComponent('Fällige Prüfungen Gerätefuhrpark')}&body=${encodeURIComponent(body)}`;
 }
 
 /* ===================== Cloud-Synchronisation ===================== */
@@ -771,15 +981,17 @@ function renderAlles(filterNeu = true) {
   renderTabelle();
   renderBenachrichtigungen();
   if (!$('#view-statistik').classList.contains('hidden')) renderStatistik();
+  if (!$('#view-kalender').classList.contains('hidden')) renderKalender();
 }
 
 function initEvents() {
   // Tabs
   $$('.tab').forEach((tab) => tab.addEventListener('click', () => {
     $$('.tab').forEach((t) => t.classList.toggle('active', t === tab));
-    $('#view-uebersicht').classList.toggle('hidden', tab.dataset.view !== 'uebersicht');
-    $('#view-statistik').classList.toggle('hidden', tab.dataset.view !== 'statistik');
+    ['uebersicht', 'kalender', 'statistik'].forEach((v) =>
+      $('#view-' + v).classList.toggle('hidden', tab.dataset.view !== v));
     if (tab.dataset.view === 'statistik') renderStatistik();
+    if (tab.dataset.view === 'kalender') renderKalender();
   }));
 
   // Filter Übersicht
@@ -813,6 +1025,13 @@ function initEvents() {
   ['#stat-zeitraum', '#stat-standort', '#stat-abteilung', '#stat-hersteller']
     .forEach((s) => $(s).addEventListener('change', renderStatistik));
 
+  // QR-Etiketten & Kalender
+  $('#btn-qr').addEventListener('click', oeffneQrModal);
+  $('#btn-ics').addEventListener('click', exportiereICS);
+  $('#btn-erinnerung').addEventListener('click', erinnerungsMail);
+  ['#kal-standort', '#kal-abteilung', '#kal-art'].forEach((s) =>
+    $(s).addEventListener('change', renderKalender));
+
   // Benachrichtigungen
   $('#notif-btn').addEventListener('click', (e) => {
     e.stopPropagation();
@@ -820,6 +1039,13 @@ function initEvents() {
   });
   document.addEventListener('click', (e) => {
     if (!e.target.closest('.notif-wrap')) $('#notif-panel').classList.add('hidden');
+  });
+
+  // Prüfarten-Editor: Zeile hinzufügen
+  $('#pruef-add').addEventListener('click', () => {
+    $('#pruef-editor').insertAdjacentHTML('beforeend', pruefEditorZeile(null));
+    const row = $('#pruef-editor').lastElementChild;
+    row.querySelector('.pe-del').addEventListener('click', () => row.remove());
   });
 
   // Modals
@@ -838,9 +1064,15 @@ function initEvents() {
     $('#nf-label').value = '';
     renderFelderListe();
   });
-  $$('[data-close]').forEach((btn) => btn.addEventListener('click', () => $('#' + btn.dataset.close).classList.add('hidden')));
+  $$('[data-close]').forEach((btn) => btn.addEventListener('click', () => {
+    $('#' + btn.dataset.close).classList.add('hidden');
+    if (btn.dataset.close === 'modal-qr') document.body.classList.remove('print-qr');
+  }));
   $$('.modal-backdrop').forEach((bd) => bd.addEventListener('mousedown', (e) => {
-    if (e.target === bd) bd.classList.add('hidden');
+    if (e.target === bd) {
+      bd.classList.add('hidden');
+      if (bd.id === 'modal-qr') document.body.classList.remove('print-qr');
+    }
   }));
 
   initCsvExporte();

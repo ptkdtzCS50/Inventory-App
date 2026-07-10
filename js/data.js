@@ -54,17 +54,41 @@ function addMonate(iso, n) {
 
 /* ---------- Geräte-Logik ---------- */
 
-/** Nächste Wartungsfälligkeit eines Geräts (ISO-Datum) oder null. */
-function naechsteWartung(g) {
-  if (!g.lastMaintenance || !g.maintenanceInterval) return null;
-  return addMonate(g.lastMaintenance, g.maintenanceInterval);
+/**
+ * Prüfarten nach MPBetreibV: Jedes Gerät kann mehrere Prüfzyklen mit
+ * eigenem Intervall haben – z. B. Herstellerwartung, sicherheitstechnische
+ * Kontrolle (STK), messtechnische Kontrolle (MTK), Validierung.
+ * g.pruefungen = [{ art, intervall (Monate), letzte (ISO|null) }]
+ */
+const PRUEFARTEN_STANDARD = ['Wartung', 'STK', 'MTK', 'Validierung'];
+
+/** Nächste Fälligkeit einer einzelnen Prüfung (ISO-Datum) oder null. */
+function pruefungNaechste(p) {
+  if (!p.letzte || !p.intervall) return null;
+  return addMonate(p.letzte, p.intervall);
 }
 
-/** Tage bis zur nächsten Wartung (negativ = überfällig) oder null. */
+/**
+ * Alle Fälligkeiten eines Geräts, nach Dringlichkeit sortiert.
+ * -> [{ art, datum, tage, p }] (tage negativ = überfällig)
+ */
+function faelligkeiten(g) {
+  return (g.pruefungen || [])
+    .map((p) => ({ art: p.art, datum: pruefungNaechste(p), p }))
+    .filter((f) => f.datum)
+    .map((f) => ({ ...f, tage: tageDiff(isoDatum(heute()), f.datum) }))
+    .sort((a, b) => a.tage - b.tage);
+}
+
+/** Dringlichste Fälligkeit eines Geräts oder null. */
+function naechsteFaelligkeit(g) {
+  return faelligkeiten(g)[0] || null;
+}
+
+/** Tage bis zur dringlichsten Fälligkeit (negativ = überfällig) oder null. */
 function wartungTageVerbleibend(g) {
-  const nw = naechsteWartung(g);
-  if (!nw) return null;
-  return tageDiff(isoDatum(heute()), nw);
+  const f = naechsteFaelligkeit(g);
+  return f ? f.tage : null;
 }
 
 /**
@@ -92,9 +116,10 @@ function defektTage(g) {
 function defektEreignisse(g) {
   const events = (g.defectHistory || []).map((e) => ({
     start: e.start, end: e.end, dauerTage: Math.max(0, tageDiff(e.start, e.end)),
+    kosten: e.kosten ?? null,
   }));
   if (g.status === 'defekt' && g.defectSince) {
-    events.push({ start: g.defectSince, end: null, dauerTage: Math.max(0, tageDiff(g.defectSince, Date.now())) });
+    events.push({ start: g.defectSince, end: null, dauerTage: Math.max(0, tageDiff(g.defectSince, Date.now())), kosten: null });
   }
   return events;
 }
@@ -112,6 +137,12 @@ function migriereDaten(daten) {
       if (g[feld] === undefined) g[feld] = s ? (s[feld] ?? '') : '';
     }
     if (!g.custom) g.custom = {};
+    // Altbestand: einzelnes Wartungsintervall -> Prüfarten-Liste überführen
+    if (!g.pruefungen) {
+      if (s && s.pruefungen) g.pruefungen = JSON.parse(JSON.stringify(s.pruefungen));
+      else if (g.maintenanceInterval) g.pruefungen = [{ art: 'Wartung', intervall: g.maintenanceInterval, letzte: g.lastMaintenance || null }];
+      else g.pruefungen = [];
+    }
   }
   // Eigene (vom Admin definierte) Felder
   if (!daten.customFields) daten.customFields = [];
@@ -217,9 +248,9 @@ function erzeugeDemoDaten() {
       location: 'Hauptstandort Klinikum', department: 'Histologie',
       room: 'EG 012', team: 'Team Zuschnitt & Schnitt', ...leica,
       purchaseDate: monateVor(50), warrantyEnd: monateVor(26),
-      maintenanceInterval: 12, lastMaintenance: monateVor(8),
+      pruefungen: [{ art: 'Wartung', intervall: 12, letzte: monateVor(8) }],
       status: 'ok', defectSince: null,
-      defectHistory: [{ start: monateVor(14), end: tageVor(Math.round(14 * 30.4) - 2) }],
+      defectHistory: [{ start: monateVor(14), end: tageVor(Math.round(14 * 30.4) - 2), kosten: 420 }],
       log: [sysLog(monateVor(8), 'Wartung durchgeführt.')],
     },
     {
@@ -229,7 +260,7 @@ function erzeugeDemoDaten() {
       location: 'Hauptstandort Klinikum', department: 'Histologie',
       room: 'EG 014', team: 'Team Färbung', ...sakura,
       purchaseDate: monateVor(30), warrantyEnd: monateVor(6),
-      maintenanceInterval: 6, lastMaintenance: tageVor(170),
+      pruefungen: [{ art: 'Wartung', intervall: 6, letzte: tageVor(170) }, { art: 'STK', intervall: 24, letzte: monateVor(20) }],
       status: 'ok', defectSince: null,
       defectHistory: [],
       log: [sysLog(tageVor(170), 'Wartung durchgeführt.')],
@@ -241,11 +272,11 @@ function erzeugeDemoDaten() {
       location: 'Hauptstandort Klinikum', department: 'Histologie',
       room: 'EG 014', team: 'Team Färbung', ...leica,
       purchaseDate: monateVor(64), warrantyEnd: monateVor(40),
-      maintenanceInterval: 12, lastMaintenance: monateVor(5),
+      pruefungen: [{ art: 'Wartung', intervall: 12, letzte: monateVor(5) }],
       status: 'defekt', defectSince: tageVor(3),
       defectHistory: [
-        { start: monateVor(10), end: tageVor(Math.round(10 * 30.4) - 4) },
-        { start: monateVor(4), end: tageVor(Math.round(4 * 30.4) - 6) },
+        { start: monateVor(10), end: tageVor(Math.round(10 * 30.4) - 4), kosten: 380 },
+        { start: monateVor(4), end: tageVor(Math.round(4 * 30.4) - 6), kosten: 650 },
       ],
       log: [
         sysLog(tageVor(3), 'Status geändert: Funktionsfähig → Defekt. Grund: Eindeckmedium wird nicht mehr dosiert.'),
@@ -258,7 +289,7 @@ function erzeugeDemoDaten() {
       location: 'Hauptstandort Klinikum', department: 'Histologie',
       room: 'EG 010', team: 'Team Einbettung', ...leica,
       purchaseDate: monateVor(20), warrantyEnd: addMonate(monateVor(20), 24),
-      maintenanceInterval: 12, lastMaintenance: monateVor(4),
+      pruefungen: [{ art: 'Wartung', intervall: 12, letzte: monateVor(4) }, { art: 'STK', intervall: 24, letzte: monateVor(10) }],
       status: 'ok', defectSince: null, defectHistory: [], log: [],
     },
     {
@@ -268,9 +299,9 @@ function erzeugeDemoDaten() {
       location: 'Hauptstandort Klinikum', department: 'Immunhistochemie',
       room: 'OG1 105', team: 'Team IHC', ...roche,
       purchaseDate: monateVor(44), warrantyEnd: monateVor(20),
-      maintenanceInterval: 6, lastMaintenance: monateVor(7),
+      pruefungen: [{ art: 'Wartung', intervall: 6, letzte: monateVor(7) }, { art: 'MTK', intervall: 12, letzte: monateVor(11) }],
       status: 'ok', defectSince: null,
-      defectHistory: [{ start: monateVor(9), end: tageVor(Math.round(9 * 30.4) - 5) }],
+      defectHistory: [{ start: monateVor(9), end: tageVor(Math.round(9 * 30.4) - 5), kosten: 1250 }],
       log: [sysLog(monateVor(7), 'Wartung durchgeführt.')],
     },
     {
@@ -279,9 +310,9 @@ function erzeugeDemoDaten() {
       location: 'Hauptstandort Klinikum', department: 'Schnellschnitt-Labor',
       room: 'EG 003 (OP-Nähe)', team: 'Team Schnellschnitt', ...leica,
       purchaseDate: monateVor(38), warrantyEnd: monateVor(14),
-      maintenanceInterval: 12, lastMaintenance: monateVor(9),
+      pruefungen: [{ art: 'Wartung', intervall: 12, letzte: monateVor(9) }, { art: 'STK', intervall: 12, letzte: monateVor(6) }],
       status: 'ok', defectSince: null,
-      defectHistory: [{ start: monateVor(6), end: tageVor(Math.round(6 * 30.4) - 1) }],
+      defectHistory: [{ start: monateVor(6), end: tageVor(Math.round(6 * 30.4) - 1), kosten: 290 }],
       log: [],
     },
     {
@@ -290,7 +321,7 @@ function erzeugeDemoDaten() {
       location: 'Hauptstandort Klinikum', department: 'Probenarchiv',
       room: 'UG 021', team: 'Team Archiv', ...labnord,
       purchaseDate: monateVor(70), warrantyEnd: monateVor(46),
-      maintenanceInterval: 12, lastMaintenance: monateVor(2),
+      pruefungen: [{ art: 'Wartung', intervall: 12, letzte: monateVor(2) }, { art: 'Validierung', intervall: 12, letzte: monateVor(3) }],
       status: 'ok', defectSince: null, defectHistory: [], log: [],
     },
     {
@@ -299,7 +330,7 @@ function erzeugeDemoDaten() {
       location: 'Hauptstandort Klinikum', department: 'Zytologie',
       room: 'OG1 110', team: 'Team Befundung', ...zeiss,
       purchaseDate: monateVor(55), warrantyEnd: monateVor(31),
-      maintenanceInterval: 24, lastMaintenance: monateVor(13),
+      pruefungen: [{ art: 'Wartung', intervall: 24, letzte: monateVor(13) }],
       status: 'ok', defectSince: null, defectHistory: [], log: [],
     },
     {
@@ -308,9 +339,9 @@ function erzeugeDemoDaten() {
       location: 'Hauptstandort Klinikum', department: 'Zytologie',
       room: 'OG1 112', team: 'Team Zytologie', ...thermo,
       purchaseDate: monateVor(48), warrantyEnd: monateVor(24),
-      maintenanceInterval: 12, lastMaintenance: monateVor(6),
+      pruefungen: [{ art: 'Wartung', intervall: 12, letzte: monateVor(6) }, { art: 'STK', intervall: 24, letzte: monateVor(18) }],
       status: 'defekt', defectSince: tageVor(12),
-      defectHistory: [{ start: monateVor(16), end: tageVor(Math.round(16 * 30.4) - 9) }],
+      defectHistory: [{ start: monateVor(16), end: tageVor(Math.round(16 * 30.4) - 9), kosten: 780 }],
       log: [
         sysLog(tageVor(12), 'Status geändert: Funktionsfähig → Defekt. Grund: Rotor blockiert, Fehlercode E12.'),
         { ts: new Date(tageVor(10) + 'T11:30:00').getTime(), author: 'K. Hoffmann', type: 'user', text: 'Service-Ticket bei Thermo Fisher eröffnet (Nr. 48812).' },
@@ -324,7 +355,7 @@ function erzeugeDemoDaten() {
       location: 'Standort Nord', department: 'Molekularpathologie',
       room: 'Nord 2.01', team: 'Team Molekularpathologie', ...thermo,
       purchaseDate: monateVor(26), warrantyEnd: monateVor(2),
-      maintenanceInterval: 12, lastMaintenance: monateVor(3),
+      pruefungen: [{ art: 'Wartung', intervall: 12, letzte: monateVor(3) }, { art: 'MTK', intervall: 12, letzte: monateVor(3) }],
       status: 'ok', defectSince: null, defectHistory: [], log: [],
     },
     {
@@ -334,12 +365,12 @@ function erzeugeDemoDaten() {
       location: 'Standort Nord', department: 'Histologie',
       room: 'Nord 1.05', team: 'Team Färbung Nord', ...thermo,
       purchaseDate: monateVor(58), warrantyEnd: monateVor(34),
-      maintenanceInterval: 6, lastMaintenance: monateVor(1),
+      pruefungen: [{ art: 'Wartung', intervall: 6, letzte: monateVor(1) }],
       status: 'ok', defectSince: null,
       defectHistory: [
-        { start: monateVor(11), end: tageVor(Math.round(11 * 30.4) - 8) },
-        { start: monateVor(7), end: tageVor(Math.round(7 * 30.4) - 12) },
-        { start: monateVor(2), end: tageVor(Math.round(2 * 30.4) - 10) },
+        { start: monateVor(11), end: tageVor(Math.round(11 * 30.4) - 8), kosten: 540 },
+        { start: monateVor(7), end: tageVor(Math.round(7 * 30.4) - 12), kosten: 610 },
+        { start: monateVor(2), end: tageVor(Math.round(2 * 30.4) - 10), kosten: 480 },
       ],
       log: [
         { ts: new Date(monateVor(2) + 'T10:00:00').getTime(), author: 'S. Albrecht', type: 'user', text: 'Schon der dritte Ausfall dieses Jahr – bitte in der Statistik im Blick behalten.' },
@@ -351,7 +382,7 @@ function erzeugeDemoDaten() {
       location: 'Standort Nord', department: 'Histologie',
       room: 'Nord 1.03', team: 'Team Einbettung Nord', ...leica,
       purchaseDate: monateVor(34), warrantyEnd: monateVor(10),
-      maintenanceInterval: 12, lastMaintenance: monateVor(11),
+      pruefungen: [{ art: 'Wartung', intervall: 12, letzte: monateVor(11) }],
       status: 'ok', defectSince: null, defectHistory: [], log: [],
     },
     {
@@ -360,7 +391,7 @@ function erzeugeDemoDaten() {
       location: 'Standort Nord', department: 'Zytologie',
       room: 'Nord 2.04', team: 'Team Befundung Nord', ...zeiss,
       purchaseDate: monateVor(15), warrantyEnd: addMonate(monateVor(15), 24),
-      maintenanceInterval: 24, lastMaintenance: monateVor(15),
+      pruefungen: [{ art: 'Wartung', intervall: 24, letzte: monateVor(15) }],
       status: 'ausser_betrieb', defectSince: null, defectHistory: [],
       log: [sysLog(monateVor(1), 'Status geändert: Funktionsfähig → Außer Betrieb. Grund: Arbeitsplatz derzeit nicht besetzt.')],
     },
