@@ -102,6 +102,13 @@ Einfaches Login mit Namen und zwei Rollen:
 - **Admin** – Geräte anlegen, bearbeiten, löschen
 - **Mitarbeiter/in** – Status ändern, kommentieren
 
+Zusätzlich schützt ein **Master-Passwort** den Zugang zur Seite: Es wird
+pro Gerät/Browser einmal abgefragt und dann gemerkt. Im Code liegt nur der
+SHA-256-Hash (Passwort ändern: siehe Anleitung in `js/config.js`; Feld leer
+lassen schaltet die Abfrage ab). Wichtig zur Einordnung: Das ist ein
+Sichtschutz für die öffentliche Preview, keine echte Zugriffskontrolle –
+die käme mit Supabase-Auth als Ausbauschritt.
+
 ### 7. Statistik & Auswertung
 - **Ausfallstatistik pro Hersteller** – Defekte, Ausfalltage, Ø Ausfalldauer;
   normalisiert auf Gerätebestand („Defekte pro Gerät") und Alter

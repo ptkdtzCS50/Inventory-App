@@ -37,12 +37,40 @@ const STATUS_RANG = { defekt: 0, wartung: 1, ok: 2, ausser_betrieb: 3 };
 
 /* ===================== Login & Rollen ===================== */
 
+const UNLOCK_KEY = 'geraetefuhrpark_unlock';
+
+async function sha256Hex(text) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/** true, wenn ein Master-Passwort konfiguriert ist. */
+function masterAktiv() {
+  return typeof MASTER_PASSWORT_HASH !== 'undefined' && !!MASTER_PASSWORT_HASH;
+}
+
+/** true, wenn dieses Gerät das aktuelle Master-Passwort bereits korrekt eingegeben hat. */
+function istFreigeschaltet() {
+  return !masterAktiv() || localStorage.getItem(UNLOCK_KEY) === MASTER_PASSWORT_HASH;
+}
+
 function initLogin() {
   try { nutzer = JSON.parse(localStorage.getItem(SESSION_KEY)); } catch (e) { nutzer = null; }
-  if (nutzer && nutzer.name) { zeigeApp(); } else { zeigeLogin(); }
+  if (nutzer && nutzer.name && istFreigeschaltet()) { zeigeApp(); } else { zeigeLogin(); }
 
-  $('#login-form').addEventListener('submit', (ev) => {
+  $('#login-form').addEventListener('submit', async (ev) => {
     ev.preventDefault();
+    // Master-Passwort prüfen (nur wenn konfiguriert und noch nicht freigeschaltet)
+    if (masterAktiv() && !istFreigeschaltet()) {
+      const hash = await sha256Hex($('#login-passwort').value);
+      if (hash !== MASTER_PASSWORT_HASH) {
+        $('#passwort-fehler').classList.remove('hidden');
+        $('#login-passwort').value = '';
+        $('#login-passwort').focus();
+        return;
+      }
+      localStorage.setItem(UNLOCK_KEY, MASTER_PASSWORT_HASH);
+    }
     const name = $('#login-name').value.trim();
     if (!name) return;
     nutzer = { name, role: document.querySelector('input[name="role"]:checked').value };
@@ -60,6 +88,9 @@ function initLogin() {
 function zeigeLogin() {
   $('#login-screen').classList.remove('hidden');
   $('#app').classList.add('hidden');
+  // Passwortfeld nur zeigen, wenn ein Master-Passwort gesetzt und dieses Gerät noch nicht freigeschaltet ist
+  $('#passwort-feld').classList.toggle('hidden', istFreigeschaltet());
+  $('#passwort-fehler').classList.add('hidden');
 }
 
 function zeigeApp() {
