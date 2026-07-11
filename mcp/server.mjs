@@ -135,6 +135,55 @@ function systemLog(g, text) {
   g.log.push({ ts: Date.now(), author: AUTOR, type: 'system', text });
 }
 
+/* Strukturierte Verlaufseinträge der App (key/params statt Text) auf Deutsch rendern. */
+const SYS_TEXTE = {
+  'sys.defekt': 'Status geändert: {alt} → Defekt ({name}).',
+  'sys.repariert': 'Status geändert: Defekt → Funktionsfähig ({name}). Ausfalldauer: {dauer} Tag(e).',
+  'sys.kosten': 'Reparaturkosten: {betrag}.',
+  'sys.ausser': 'Status geändert: {alt} → Außer Betrieb ({name}).',
+  'sys.inBetrieb': 'Status geändert: Außer Betrieb → Funktionsfähig ({name}).',
+  'sys.statuswechsel': 'Status geändert: {alt} → {neu} ({name}).',
+  'sys.ausfallinfo': 'Ausfalldauer: {dauer} Tag(e).',
+  'sys.ausfallKosten': 'Ausfalldauer: {dauer} Tag(e). Reparaturkosten: {betrag}.',
+  'sys.grund': 'Grund: {grund}',
+  'sys.bearbeitet': 'Stammdaten bearbeitet ({name}).',
+  'sys.angelegt': 'Gerät angelegt ({name}).',
+  'sys.pruefung': '{art} durchgeführt ({name}). Nächste Fälligkeit: {datum}.',
+  'sys.dokLink': 'Dokument verlinkt: {dok} ({name}).',
+  'sys.dokUpload': 'Dokument hochgeladen: {dok} ({name}).',
+  'sys.dokEntfernt': 'Dokument entfernt: {dok} ({name}).',
+  'sys.reserviert': 'Reservierung angelegt: {zeit} – {zweck} ({name}).',
+  'sys.storniert': 'Reservierung storniert: {zeit} – {zweck} ({name}).',
+  'sys.serviceMail': 'Störungs-E-Mail an {email} vorbereitet ({name}).',
+  'sys.etImport': 'Ersatzteil-Import: {n} Teile aus {datei} ({name}).',
+  'sys.kontakteKopiert': '{n} Kontakt(e) von „{von}“ übernommen ({name}).',
+  'sys.archiviert': 'Gerät archiviert ({name}).',
+  'sys.wiederhergestellt': 'Gerät aus dem Archiv wiederhergestellt ({name}).',
+};
+const STATUS_NAMEN = { ok: 'Funktionsfähig', wartung: 'Wartung fällig', defekt: 'Defekt', ausser_betrieb: 'Außer Betrieb' };
+
+function sysTeil(key, params) {
+  const vorlage = SYS_TEXTE[key] || key;
+  return vorlage.replace(/\{(\w+)\}/g, (_, k) => {
+    let w = params ? params[k] : undefined;
+    if (typeof w === 'string' && w.startsWith('§')) {
+      const roh = w.slice(1);
+      w = roh.startsWith('status.') ? (STATUS_NAMEN[roh.slice(7)] || roh) : roh;
+    }
+    return w === undefined || w === null ? '–' : String(w);
+  });
+}
+
+/** Verlaufseintrag als Text (strukturiert -> gerendert, sonst Originaltext). */
+function logText(e) {
+  if (e.key) {
+    return sysTeil(e.key, e.params)
+      + (e.key2 ? ' ' + sysTeil(e.key2, e.params2) : '')
+      + (e.key3 ? ' ' + sysTeil(e.key3, e.params3) : '');
+  }
+  return e.text || '';
+}
+
 const PFLICHTFELDER = [
   ['serial', 'Seriennummer'], ['inventoryNo', 'Inventarnummer'], ['purchaseDate', 'Anschaffungsdatum'],
   ['room', 'Raum'], ['team', 'Team'], ['distributor', 'Distributor'], ['distEmail', 'Service-E-Mail'],
@@ -146,14 +195,15 @@ const PFLICHTFELDER = [
 const TOOLS = [
   {
     name: 'geraete_suchen',
-    description: 'Geräte im Fuhrpark suchen/auflisten. Filter: Freitext (Name/Modell/Seriennummer), Standort, Abteilung, Status (ok|defekt|ausser_betrieb).',
+    description: 'Geräte im Fuhrpark suchen/auflisten. Filter: Freitext (Name/Modell/Seriennummer), Standort, Abteilung, Status (ok|defekt|ausser_betrieb). Archivierte Geräte erscheinen nur mit archiv=true.',
     inputSchema: { type: 'object', properties: {
       suche: { type: 'string', description: 'Freitextsuche' },
       standort: { type: 'string' }, abteilung: { type: 'string' },
       status: { type: 'string', enum: ['ok', 'defekt', 'ausser_betrieb'] },
+      archiv: { type: 'boolean', description: 'true = auch archivierte Geräte einbeziehen' },
     } },
     async ausfuehren(args, { daten }) {
-      let liste = daten.devices;
+      let liste = args.archiv ? daten.devices : daten.devices.filter((g) => !g.archiviert);
       const s = (args.suche || '').toLowerCase();
       if (s) liste = liste.filter((g) => [g.name, g.model, g.serial, g.inventoryNo, g.manufacturer, g.category].some((f) => (f || '').toLowerCase().includes(s)));
       if (args.standort) liste = liste.filter((g) => g.location === args.standort);
@@ -170,7 +220,7 @@ const TOOLS = [
     async ausfuehren(args, { daten }) {
       const g = daten.devices.find((x) => x.id === args.id);
       if (!g) return `Gerät #${args.id} nicht gefunden.`;
-      const log = (g.log || []).slice(-5).map((e) => `  ${new Date(e.ts).toISOString().slice(0, 10)} ${e.author}: ${e.text}`).join('\n');
+      const log = (g.log || []).slice(-5).map((e) => `  ${new Date(e.ts).toISOString().slice(0, 10)} ${e.author}: ${logText(e)}`).join('\n');
       return JSON.stringify({
         id: g.id, name: g.name, kategorie: g.category, hersteller: g.manufacturer, modell: g.model,
         seriennummer: g.serial, inventarnummer: g.inventoryNo, standort: g.location, abteilung: g.department,
@@ -190,6 +240,7 @@ const TOOLS = [
     async ausfuehren(_args, { daten }) {
       const befunde = [];
       for (const g of daten.devices) {
+        if (g.archiviert) continue;
         const fehlt = PFLICHTFELDER.filter(([k]) => !g[k]).map(([, label]) => label);
         if (!(g.pruefungen || []).length) fehlt.push('Prüfzyklen (Wartung/STK/MTK)');
         else if ((g.pruefungen || []).some((p) => !p.letzte)) fehlt.push('Datum der letzten Prüfung');
@@ -295,7 +346,7 @@ const TOOLS = [
       const horizont = (args.monate || 3) * 30;
       const eintraege = [];
       for (const g of daten.devices) {
-        if (g.status === 'ausser_betrieb') continue;
+        if (g.status === 'ausser_betrieb' || g.archiviert) continue;
         for (const f of faelligkeiten(g)) {
           if (f.tage <= horizont) eintraege.push({ tage: f.tage, text: `${f.datum} · ${f.art} · ${g.name} (#${g.id}, ${g.location}/${g.department})${f.tage < 0 ? ` – ÜBERFÄLLIG seit ${-f.tage} Tagen` : ''}${g.distributor ? ` · Service: ${g.distributor}` : ''}` });
         }
@@ -411,6 +462,7 @@ const TOOLS = [
       const gruppen = (feld) => {
         const map = new Map();
         for (const g of daten.devices) {
+          if (g.archiviert) continue;
           const key = g[feld] || 'Ohne Angabe';
           if (!map.has(key)) map.set(key, { geraete: 0, defekte: 0, tage: 0, kosten: 0 });
           const s = map.get(key);

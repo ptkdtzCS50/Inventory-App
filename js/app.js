@@ -143,8 +143,8 @@ function gefilterteListe() {
     zustand.qrGeraet = null;
   }
   const s = zustand.suche.toLowerCase();
-  let liste = daten.devices.filter((g) => {
-    if (s && ![g.name, g.serial, g.inventoryNo, g.model, g.manufacturer, g.room, g.team]
+  let liste = aktiveGeraete().filter((g) => {
+    if (s && ![g.name, g.serial, g.inventoryNo, g.model, g.manufacturer, g.room, g.team, g.responsible, g.responsibleKuerzel]
       .some((f) => (f || '').toLowerCase().includes(s))) return false;
     if (zustand.standort && g.location !== zustand.standort) return false;
     if (zustand.abteilung && g.department !== zustand.abteilung) return false;
@@ -172,8 +172,8 @@ function gefilterteListe() {
 }
 
 function renderKacheln() {
-  const zaehler = { gesamt: daten.devices.length, ok: 0, wartung: 0, defekt: 0, ausser_betrieb: 0 };
-  for (const g of daten.devices) zaehler[effektiverStatus(g)]++;
+  const zaehler = { gesamt: aktiveGeraete().length, ok: 0, wartung: 0, defekt: 0, ausser_betrieb: 0 };
+  for (const g of aktiveGeraete()) zaehler[effektiverStatus(g)]++;
   $('#dashboard-tiles').innerHTML = `
     <div class="tile" data-status=""><div class="tile-num">${zaehler.gesamt}</div><div class="tile-label">${t('kachel.gesamt')}</div></div>
     <div class="tile t-green" data-status="ok"><div class="tile-num">${zaehler.ok}</div><div class="tile-label">${t('kachel.ok')}</div></div>
@@ -212,7 +212,7 @@ function geraetZeile(g) {
   const st = statusInfo(effektiverStatus(g));
   return `<tr data-id="${g.id}">
     <td><button type="button" class="badge badge-btn ${st.klasse}" title="${esc(t('statusdlg.titel'))}">${st.text}</button></td>
-    <td><span class="device-name">${esc(g.name)}</span><br><span class="device-sub">${esc(g.model || '')} · ${t('zelle.inv')} ${esc(g.inventoryNo || '–')}</span></td>
+    <td><span class="device-name">${esc(g.name)}</span><br><span class="device-sub">${esc(g.model || '')} · ${t('zelle.inv')} ${esc(g.inventoryNo || '–')}${g.responsibleKuerzel || g.responsible ? ` · <span title="${esc(t('dt.verantwortlich'))}: ${esc(g.responsible || '')}">👤 ${esc(g.responsibleKuerzel || g.responsible)}</span>` : ''}</span></td>
     <td>${esc(tBegriff(g.category))}</td>
     <td>${esc(g.location)}${g.room ? `<br><span class="device-sub">${t('zelle.raum')} ${esc(g.room)}</span>` : ''}</td>
     <td>${esc(tBegriff(g.department))}${g.team ? `<br><span class="device-sub">${esc(g.team)}</span>` : ''}</td>
@@ -305,7 +305,7 @@ function renderTabelle() {
 
 /** Gruppierungs-Auswahl in der aktiven Sprache aufbauen. */
 function fuelleGruppenOptionen() {
-  const dims = ['location', 'department', 'room', 'team', 'category', 'manufacturer', 'distributor', 'status'];
+  const dims = ['location', 'department', 'room', 'team', 'responsible', 'category', 'manufacturer', 'distributor', 'status'];
   const el = $('#group-by');
   const wert = el.value;
   el.innerHTML = `<option value="">${t('filter.keineGruppe')}</option>` +
@@ -322,9 +322,9 @@ function fuelleFilterOptionen() {
       .map((w) => `<option value="${esc(w)}">${esc(uebersetzen ? tBegriff(w) : w)}</option>`).join('');
     el.value = aktuell;
   };
-  const standorte = new Set(daten.devices.map((g) => g.location));
-  const abteilungen = new Set(daten.devices.map((g) => g.department));
-  const hersteller = new Set(daten.devices.map((g) => g.manufacturer));
+  const standorte = new Set(aktiveGeraete().map((g) => g.location));
+  const abteilungen = new Set(aktiveGeraete().map((g) => g.department));
+  const hersteller = new Set(aktiveGeraete().map((g) => g.manufacturer));
   setze('#filter-standort', standorte, zustand.standort);
   setze('#filter-abteilung', abteilungen, zustand.abteilung, true);
   setze('#stat-standort', standorte, $('#stat-standort').value);
@@ -334,25 +334,26 @@ function fuelleFilterOptionen() {
   setze('#kal-abteilung', abteilungen, $('#kal-abteilung').value, true);
   setze('#bel-standort', standorte, $('#bel-standort').value);
   setze('#bel-abteilung', abteilungen, $('#bel-abteilung').value, true);
-  const pruefarten = new Set(daten.devices.flatMap((g) => (g.pruefungen || []).map((p) => p.art)));
+  const pruefarten = new Set(aktiveGeraete().flatMap((g) => (g.pruefungen || []).map((p) => p.art)));
   setze('#kal-art', pruefarten, $('#kal-art').value, true);
 
   // Datalists im Formular
   const dl = (id, werte) => { $(id).innerHTML = [...werte].map((w) => `<option value="${esc(w)}">`).join(''); };
-  dl('#dl-category', new Set(daten.devices.map((g) => g.category)));
+  dl('#dl-category', new Set(aktiveGeraete().map((g) => g.category)));
   dl('#dl-manufacturer', hersteller);
   dl('#dl-location', standorte);
   dl('#dl-department', abteilungen);
-  dl('#dl-room', new Set(daten.devices.map((g) => g.room).filter(Boolean)));
-  dl('#dl-team', new Set(daten.devices.map((g) => g.team).filter(Boolean)));
-  dl('#dl-distributor', new Set(daten.devices.map((g) => g.distributor).filter(Boolean)));
+  dl('#dl-room', new Set(aktiveGeraete().map((g) => g.room).filter(Boolean)));
+  dl('#dl-team', new Set(aktiveGeraete().map((g) => g.team).filter(Boolean)));
+  dl('#dl-distributor', new Set(aktiveGeraete().map((g) => g.distributor).filter(Boolean)));
+  dl('#dl-responsible', new Set(aktiveGeraete().map((g) => g.responsible).filter(Boolean)));
 }
 
 /* ===================== Benachrichtigungen ===================== */
 
 function berechneBenachrichtigungen() {
   const liste = [];
-  for (const g of daten.devices) {
+  for (const g of aktiveGeraete()) {
     for (const f of faelligkeiten(g)) {
       if (f.tage < 0) {
         liste.push({ id: g.id, icon: '🔴', text: t('notif.ueberfaellig', { geraet: g.name, art: tBegriff(f.art), n: -f.tage }) });
@@ -385,6 +386,9 @@ function renderBenachrichtigungen() {
 /* ===================== Detailansicht & Chat ===================== */
 
 function findeGeraet(id) { return daten.devices.find((g) => g.id === id); }
+
+/** Aktiver Fuhrpark – archivierte Geräte (R4) bleiben außen vor. */
+function aktiveGeraete() { return daten.devices.filter((g) => !g.archiviert); }
 
 function systemEintrag(g, text) {
   g.log.push({ ts: Date.now(), author: 'System', type: 'system', text });
@@ -448,14 +452,21 @@ function renderDetail() {
   if (!g) return;
   const st = statusInfo(effektiverStatus(g));
   const dt = defektTage(g);
-  $('#detail-title').innerHTML = `${esc(g.name)} <button type="button" class="badge badge-btn ${st.klasse}" title="${esc(t('statusdlg.titel'))}">${st.text}</button>`;
-  $('#detail-title .badge-btn').addEventListener('click', () => oeffneStatusDialog(g.id));
+  $('#detail-title').innerHTML = `${esc(g.name)} <button type="button" class="badge badge-btn ${st.klasse}" title="${esc(t('statusdlg.titel'))}">${st.text}</button>${g.archiviert ? ` <span class="badge b-ausser">📦 ${t('tab.archiv')}</span>` : ''}`;
+  if (!g.archiviert) $('#detail-title .badge-btn').addEventListener('click', () => oeffneStatusDialog(g.id));
 
   const aktionen = [];
-  aktionen.push(`<button class="btn btn-primary btn-status" data-aktion="status">${t('aktion.status')}</button>`);
-  if (g.status === 'defekt' && g.distEmail) aktionen.push(`<a class="btn btn-status" id="btn-service-mail" href="${serviceMailLink(g)}">${t('aktion.service')}</a>`);
+  if (!g.archiviert) {
+    aktionen.push(`<button class="btn btn-primary btn-status" data-aktion="status">${t('aktion.status')}</button>`);
+    if (g.status === 'defekt' && g.distEmail) aktionen.push(`<a class="btn btn-status" id="btn-service-mail" href="${serviceMailLink(g)}">${t('aktion.service')}</a>`);
+  }
   if (istAdmin()) {
-    aktionen.push(`<button class="btn btn-status" data-aktion="bearbeiten">${t('aktion.bearbeiten')}</button>`);
+    if (!g.archiviert) {
+      aktionen.push(`<button class="btn btn-status" data-aktion="bearbeiten">${t('aktion.bearbeiten')}</button>`);
+      if (g.status === 'ausser_betrieb') aktionen.push(`<button class="btn btn-status" data-aktion="archivieren">📦 ${t('aktion.archivieren')}</button>`);
+    } else {
+      aktionen.push(`<button class="btn btn-primary btn-status" data-aktion="wiederherstellen">${t('aktion.wiederherstellen')}</button>`);
+    }
     aktionen.push(`<button class="btn btn-danger btn-status" data-aktion="loeschen">${t('aktion.loeschen')}</button>`);
   }
 
@@ -487,11 +498,11 @@ function renderDetail() {
       <div><dt>${t('dt.inventarnummer')}</dt><dd>${esc(g.inventoryNo || '–')}</dd></div>
       <div><dt>${t('dt.standort')}</dt><dd>${esc(g.location)}${g.room ? ' · ' + t('zelle.raum') + ' ' + esc(g.room) : ''}</dd></div>
       <div><dt>${t('dt.abteilung')}</dt><dd>${esc(tBegriff(g.department))}${g.team ? ' · ' + esc(g.team) : ''}</dd></div>
+      <div><dt>${t('dt.verantwortlich')}</dt><dd>${g.responsible ? esc(g.responsible) + (g.responsibleKuerzel ? ' (' + esc(g.responsibleKuerzel) + ')' : '') : '–'}</dd></div>
       <div><dt>${t('dt.anschaffung')}</dt><dd>${formatDatum(g.purchaseDate)}</dd></div>
       <div><dt>${t('dt.garantie')}</dt><dd>${formatDatum(g.warrantyEnd)}</dd></div>
       <div><dt>${t('dt.distributor')}</dt><dd>${esc(g.distributor || '–')}</dd></div>
-      <div><dt>${t('dt.serviceKontakt')}</dt><dd>${g.distContact ? esc(g.distContact) + ' · ' : ''}${esc(g.distPhone || '–')}${g.distEmail ? ' · <a href="mailto:' + esc(g.distEmail) + '">' + esc(g.distEmail) + '</a>' : ''}</dd></div>
-      <div><dt>${t('dt.vertrieb')}</dt><dd>${g.salesName || g.salesPhone || g.salesEmail ? `${esc(g.salesName || '')}${g.salesPhone ? ' · ' + esc(g.salesPhone) : ''}${g.salesEmail ? ' · <a href="mailto:' + esc(g.salesEmail) + '">' + esc(g.salesEmail) + '</a>' : ''}` : '–'}</dd></div>
+      ${g.archiviert ? `<div><dt>${t('archiv.am')}</dt><dd>${formatDatum(g.archiviert.am)} · ${esc(g.archiviert.von)}</dd></div>` : ''}
       <div><dt>${t('dt.netzwerk')}</dt><dd>${g.networkAddress
         ? esc(g.networkAddress) + (MONITORING_ENDPOINT
           ? ` <button type="button" class="btn btn-sm" id="btn-netcheck">${t('dt.netzwerkAbfrage')}</button>`
@@ -509,6 +520,7 @@ function renderDetail() {
             <tbody>${pruefZeilen}</tbody></table></div>`
         : `<p><small>${t('pruef.keine')}</small></p>`}
     </div>
+    ${kontakteHtml(g)}
     ${dokumenteHtml(g)}
     ${ersatzteileHtml(g)}
     ${belegungHtml(g)}
@@ -541,6 +553,10 @@ function renderDetail() {
   $$('#detail-body .btn-status').forEach((btn) => {
     if (btn.dataset.aktion) btn.addEventListener('click', () => statusAktion(g, btn.dataset.aktion));
   });
+
+  // Kontakte auf andere Geräte kopieren (Ä3)
+  const kkBtn = $('#btn-kontakte-kopieren');
+  if (kkBtn) kkBtn.addEventListener('click', () => oeffneKontakteKopieren(g));
 
   // --- Dokumente ---
   $$('#detail-body .dok-open').forEach((a) => a.addEventListener('click', (ev) => {
@@ -760,6 +776,24 @@ function statusAktion(g, aktion) {
       oeffneFormular(g);
       return;
     }
+    case 'archivieren': {
+      if (!confirm(t('dialog.archivieren', { name: g.name }))) return;
+      g.archiviert = { am: isoDatum(heute()), von: nutzer.name };
+      systemEreignis(g, 'sys.archiviert', { name: nutzer.name });
+      speichereDaten(daten);
+      $('#modal-detail').classList.add('hidden');
+      renderAlles();
+      return;
+    }
+    case 'wiederherstellen': {
+      g.archiviert = null;
+      systemEreignis(g, 'sys.wiederhergestellt', { name: nutzer.name });
+      speichereDaten(daten);
+      renderDetail();
+      renderAlles();
+      if (!$('#view-archiv').classList.contains('hidden')) renderArchiv();
+      return;
+    }
     case 'loeschen': {
       if (!confirm(t('dialog.loeschen', { name: g.name }))) return;
       daten.devices = daten.devices.filter((x) => x.id !== g.id);
@@ -791,7 +825,7 @@ function parseBetrag(eingabe) {
 /** Dialog öffnen: neuen Status wählen + Pflichtbegründung (wer/wann/was/warum im Verlauf). */
 function oeffneStatusDialog(id) {
   const g = findeGeraet(id);
-  if (!g) return;
+  if (!g || g.archiviert) return;
   zustand.statusDialogGeraet = id;
   const st = statusInfo(effektiverStatus(g));
   $('#status-geraet').innerHTML = `<strong>${esc(g.name)}</strong> · ${t('statusdlg.aktuell')}: <span class="badge ${st.klasse}">${st.text}</span>`;
@@ -910,6 +944,36 @@ function samplePruefungen() {
   })).filter((p) => p.art && p.intervall);
 }
 
+/* --- Kontakt-Editor im Geräteformular (Ä3) --- */
+
+function kontaktEditorZeile(k) {
+  return `<div class="kontakt-row">
+    <input type="text" class="ke-typ" list="dl-kontakt-typ" placeholder="${esc(t('kontakte.typPh'))}" value="${esc(k?.typ ? tBegriff(k.typ) : '')}" maxlength="30">
+    <input type="text" class="ke-name" placeholder="${esc(t('kontakte.namePh'))}" value="${esc(k?.name || '')}" maxlength="60">
+    <input type="tel" class="ke-telefon" placeholder="${esc(t('kontakte.telefonPh'))}" value="${esc(k?.telefon || '')}" maxlength="30">
+    <input type="email" class="ke-email" placeholder="${esc(t('kontakte.emailPh'))}" value="${esc(k?.email || '')}" maxlength="80">
+    <input type="hidden" class="ke-id" value="${esc(k?.id || '')}">
+    <button type="button" class="btn btn-sm btn-danger ke-del" title="${esc(t('felder.entfernen'))}">✕</button>
+  </div>`;
+}
+
+function renderKontaktEditor(liste) {
+  $('#kontakt-editor').innerHTML = liste.map(kontaktEditorZeile).join('');
+  $$('#kontakt-editor .ke-del').forEach((btn) =>
+    btn.addEventListener('click', () => btn.closest('.kontakt-row').remove()));
+}
+
+/** Kontakte aus dem Editor einsammeln (komplett leere Zeilen werden ignoriert). */
+function sammleKontakte() {
+  return $$('#kontakt-editor .kontakt-row').map((row) => ({
+    id: row.querySelector('.ke-id').value || neueId(),
+    typ: normalisiereBegriff(row.querySelector('.ke-typ').value.trim()),
+    name: row.querySelector('.ke-name').value.trim(),
+    telefon: row.querySelector('.ke-telefon').value.trim(),
+    email: row.querySelector('.ke-email').value.trim(),
+  })).filter((k) => k.name || k.telefon || k.email);
+}
+
 function oeffneFormular(g) {
   $('#form-title').textContent = g ? t('form.titelBearbeiten') : t('form.titelNeu');
   $('#f-id').value = g ? g.id : '';
@@ -924,12 +988,9 @@ function oeffneFormular(g) {
   $('#f-room').value = g?.room || '';
   $('#f-team').value = g?.team || '';
   $('#f-distributor').value = g?.distributor || '';
-  $('#f-dist-contact').value = g?.distContact || '';
-  $('#f-dist-phone').value = g?.distPhone || '';
-  $('#f-dist-email').value = g?.distEmail || '';
-  $('#f-sales-name').value = g?.salesName || '';
-  $('#f-sales-phone').value = g?.salesPhone || '';
-  $('#f-sales-email').value = g?.salesEmail || '';
+  $('#f-responsible').value = g?.responsible || '';
+  $('#f-responsible-kuerzel').value = g?.responsibleKuerzel || '';
+  renderKontaktEditor(g?.kontakte?.length ? g.kontakte : [{ typ: 'Service' }, { typ: 'Vertrieb' }]);
   $('#f-purchase').value = g?.purchaseDate || '';
   $('#f-warranty').value = g?.warrantyEnd || '';
   $('#f-network').value = g?.networkAddress || '';
@@ -955,12 +1016,9 @@ function speichereFormular(ev) {
     room: $('#f-room').value.trim(),
     team: $('#f-team').value.trim(),
     distributor: $('#f-distributor').value.trim(),
-    distContact: $('#f-dist-contact').value.trim(),
-    distPhone: $('#f-dist-phone').value.trim(),
-    distEmail: $('#f-dist-email').value.trim(),
-    salesName: $('#f-sales-name').value.trim(),
-    salesPhone: $('#f-sales-phone').value.trim(),
-    salesEmail: $('#f-sales-email').value.trim(),
+    responsible: $('#f-responsible').value.trim(),
+    responsibleKuerzel: $('#f-responsible-kuerzel').value.trim().toUpperCase(),
+    kontakte: sammleKontakte(),
     purchaseDate: $('#f-purchase').value || null,
     warrantyEnd: $('#f-warranty').value || null,
     networkAddress: $('#f-network').value.trim(),
@@ -973,16 +1031,18 @@ function speichereFormular(ev) {
   if (id) {
     const g = findeGeraet(id);
     Object.assign(g, felder);
+    syncKontakteAltfelder(g);
     systemEreignis(g, 'sys.bearbeitet', { name: nutzer.name });
   } else {
-    if (daten.devices.length >= lizenzGeraetelimit()) {
+    if (aktiveGeraete().length >= lizenzGeraetelimit()) {
       alert(t('lizenz.limit', { n: lizenzGeraetelimit() }));
       return;
     }
     const g = {
       id: daten.nextId++, ...felder,
-      status: 'ok', defectSince: null, defectHistory: [], log: [],
+      status: 'ok', defectSince: null, defectHistory: [], log: [], archiviert: null,
     };
+    syncKontakteAltfelder(g);
     systemEreignis(g, 'sys.angelegt', { name: nutzer.name });
     daten.devices.push(g);
   }
@@ -1006,8 +1066,8 @@ const f1 = (n) => n.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumF
 
 function renderStatistik() {
   const filter = statFilter();
-  const events = gefilterteEreignisse(daten.devices, filter);
-  const geraete = gefilterteGeraete(daten.devices, filter);
+  const events = gefilterteEreignisse(aktiveGeraete(), filter);
+  const geraete = gefilterteGeraete(aktiveGeraete(), filter);
   const abgeschlossen = events.filter((e) => e.end);
   const ausfalltage = events.reduce((s, e) => s + e.dauerTage, 0);
   const kostenGesamt = events.reduce((s, e) => s + (e.kosten || 0), 0);
@@ -1021,10 +1081,10 @@ function renderStatistik() {
     <div class="tile"><div class="tile-num">${f1(mittlereRep)}</div><div class="tile-label">${t('stat.oRep')}</div></div>
     <div class="tile t-red"><div class="tile-num">${geld(kostenGesamt)}</div><div class="tile-label">${t('stat.kostenZeitraum')}</div></div>`;
 
-  balkendiagramm($('#chart-monat'), statMonatsverlauf(daten.devices, filter));
+  balkendiagramm($('#chart-monat'), statMonatsverlauf(aktiveGeraete(), filter));
 
   // --- Hersteller ---
-  const hs = statHersteller(daten.devices, filter);
+  const hs = statHersteller(aktiveGeraete(), filter);
   $('#table-hersteller').innerHTML = `
     <thead><tr><th>${t('th.hersteller')}</th><th class="num">${t('stat.geraete')}</th><th class="num">${t('stat.defekte')}</th>
     <th class="num">${t('stat.defekteProGeraet')}</th><th class="num">${t('stat.defekteProJahr')}</th>
@@ -1040,7 +1100,7 @@ function renderStatistik() {
   // --- Ausfallquote nach Dimension (Standort/Abteilung/Team/Raum) ---
   const dim = $('#stat-dimension').value;
   $('#dim-titel').textContent = t('dim.' + dim);
-  const ds2 = statDimension(daten.devices, filter, dim);
+  const ds2 = statDimension(aktiveGeraete(), filter, dim);
   $('#table-dimension').innerHTML = `
     <thead><tr><th>${t('dim.' + dim)}</th><th class="num">${t('stat.geraete')}</th><th class="num">${t('stat.defekte')}</th>
     <th class="num">${t('stat.defekteProGeraet')}</th><th class="num">${t('stat.defekteProJahr')}</th>
@@ -1054,7 +1114,7 @@ function renderStatistik() {
     </tr>`).join('') + '</tbody>';
 
   // --- Top-Ausfallgeräte ---
-  const gs = statGeraete(daten.devices, filter);
+  const gs = statGeraete(aktiveGeraete(), filter);
   $('#table-geraete').innerHTML = `
     <thead><tr><th>#</th><th>${t('th.geraet')}</th><th>${t('th.hersteller')}</th><th>${t('th.standort')}</th>
     <th class="num">${t('stat.defekte')}</th><th class="num">${t('stat.ausfalltage')}</th><th class="num">${t('stat.kosten')}</th><th class="num">${t('stat.alter')}</th><th class="num">${t('stat.defekteProJahr')}</th></tr></thead><tbody>` +
@@ -1068,7 +1128,7 @@ function renderStatistik() {
     </tr>`).join('') : `<tr><td colspan="9"><small>${t('stat.keineDefekte')}</small></td></tr>`) + '</tbody>';
 
   // --- Gerätetypen ---
-  const ts = statTypen(daten.devices, filter);
+  const ts = statTypen(aktiveGeraete(), filter);
   $('#table-typen').innerHTML = `
     <thead><tr><th>${t('dt.geraetetyp')}</th><th>${t('th.hersteller')}</th><th class="num">${t('stat.geraete')}</th>
     <th class="num">${t('stat.defekte')}</th><th class="num">${t('stat.defekteProGeraet')}</th><th class="num">${t('stat.ausfalltage')}</th></tr></thead><tbody>` +
@@ -1079,7 +1139,7 @@ function renderStatistik() {
     </tr>`).join('') + '</tbody>';
 
   // --- Distributoren ---
-  const ds = statDistributor(daten.devices, filter);
+  const ds = statDistributor(aktiveGeraete(), filter);
   $('#table-distributor').innerHTML = `
     <thead><tr><th>${t('th.distributor')}</th><th class="num">${t('stat.reparaturen')}</th>
     <th class="num">${t('stat.oRepZeit')}</th><th class="num">${t('stat.repTage')}</th></tr></thead><tbody>` +
@@ -1091,32 +1151,32 @@ function renderStatistik() {
 
 function initCsvExporte() {
   $('#csv-hersteller').addEventListener('click', () => {
-    const hs = statHersteller(daten.devices, statFilter());
+    const hs = statHersteller(aktiveGeraete(), statFilter());
     exportiereCSV('ausfallstatistik-hersteller.csv',
       [t('th.hersteller'), t('stat.geraete'), t('stat.defekte'), t('stat.defekteProGeraet'), t('stat.defekteProJahr'), t('stat.ausfalltage'), t('stat.oAusfall'), t('stat.kosten') + ' (' + WAEHRUNG + ')'],
       hs.map((s) => [s.hersteller, s.geraete, s.defekte, f1(s.defekteProGeraet), f1(s.defekteProBetriebsjahr), s.ausfalltage, f1(s.mittlereAusfalldauer), f1(s.kosten)]));
   });
   $('#csv-geraete').addEventListener('click', () => {
-    const gs = statGeraete(daten.devices, statFilter());
+    const gs = statGeraete(aktiveGeraete(), statFilter());
     exportiereCSV('top-ausfallgeraete.csv',
       ['#', t('th.geraet'), t('form.modell'), t('th.hersteller'), t('th.standort'), t('th.abteilung'), t('stat.defekte'), t('stat.ausfalltage'), t('stat.kosten') + ' (' + WAEHRUNG + ')', t('stat.alter'), t('stat.defekteProJahr')],
       gs.map((r, i) => [i + 1, r.geraet.name, r.geraet.model, r.geraet.manufacturer, r.geraet.location, r.geraet.department, r.defekte, r.ausfalltage, f1(r.kosten), f1(r.alterJahre), f1(r.defekteProBetriebsjahr)]));
   });
   $('#csv-dimension').addEventListener('click', () => {
     const dim = $('#stat-dimension').value;
-    const ds2 = statDimension(daten.devices, statFilter(), dim);
+    const ds2 = statDimension(aktiveGeraete(), statFilter(), dim);
     exportiereCSV(`ausfallquote-${dim}.csv`,
       [t('dim.' + dim), t('stat.geraete'), t('stat.defekte'), t('stat.defekteProGeraet'), t('stat.defekteProJahr'), t('stat.ausfalltage'), t('stat.oAusfall'), t('stat.kosten') + ' (' + WAEHRUNG + ')'],
       ds2.map((s) => [s.name, s.geraete, s.defekte, f1(s.defekteProGeraet), f1(s.defekteProBetriebsjahr), s.ausfalltage, f1(s.mittlereAusfalldauer), f1(s.kosten)]));
   });
   $('#csv-typen').addEventListener('click', () => {
-    const ts = statTypen(daten.devices, statFilter());
+    const ts = statTypen(aktiveGeraete(), statFilter());
     exportiereCSV('vergleich-geraetetypen.csv',
       [t('dt.geraetetyp'), t('th.hersteller'), t('stat.geraete'), t('stat.defekte'), t('stat.defekteProGeraet'), t('stat.ausfalltage')],
       ts.map((s) => [s.kategorie, s.hersteller, s.geraete, s.defekte, f1(s.defekte / s.geraete), s.ausfalltage]));
   });
   $('#csv-distributor').addEventListener('click', () => {
-    const ds = statDistributor(daten.devices, statFilter());
+    const ds = statDistributor(aktiveGeraete(), statFilter());
     exportiereCSV('reparaturzeit-distributoren.csv',
       [t('th.distributor'), t('stat.reparaturen'), t('stat.oRepZeit'), t('stat.repTage')],
       ds.map((s) => [s.distributor, s.reparaturen, f1(s.mittlereDauer), s.tageGesamt]));
@@ -1147,6 +1207,82 @@ async function oeffneDokument(d) {
   const url = URL.createObjectURL(blob);
   window.open(url, '_blank');
   setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
+/* ===================== Kontakte (Ä3) ===================== */
+
+function kontakteHtml(g) {
+  const zeilen = (g.kontakte || []).map((k) => `
+    <tr>
+      <td><strong>${esc(tBegriff(k.typ) || '–')}</strong></td>
+      <td>${esc(k.name || '–')}</td>
+      <td>${k.telefon ? `<a href="tel:${esc(k.telefon.replace(/[^+\d]/g, ''))}">${esc(k.telefon)}</a>` : '–'}</td>
+      <td>${k.email ? `<a href="mailto:${esc(k.email)}">${esc(k.email)}</a>` : '–'}</td>
+    </tr>`).join('');
+  return `
+    <div class="detail-section">
+      <h3>${t('kontakte.titel')}</h3>
+      ${zeilen
+        ? `<div class="table-wrap"><table class="kontakt-table">
+            <thead><tr><th>${t('kontakte.typ')}</th><th>${t('kontakte.name')}</th><th>${t('kontakte.telefon')}</th><th>${t('kontakte.email')}</th></tr></thead>
+            <tbody>${zeilen}</tbody></table></div>`
+        : `<p><small>${t('kontakte.keine')}</small></p>`}
+      ${(g.kontakte || []).length && !g.archiviert ? `<p class="kontakt-tools"><button type="button" class="btn btn-sm" id="btn-kontakte-kopieren">⧉ ${t('kontakte.kopieren')}</button></p>` : ''}
+    </div>`;
+}
+
+/** Kopier-Dialog: gewählte Kontakte dieses Geräts auf andere Geräte übernehmen. */
+function oeffneKontakteKopieren(g) {
+  zustand.kontakteQuelle = g.id;
+  $('#kk-titel-geraet').textContent = g.name;
+  $('#kk-kontakte').innerHTML = g.kontakte.map((k, i) => `
+    <label class="kk-row"><input type="checkbox" class="kk-kontakt" value="${i}" checked>
+      <span>${esc(tBegriff(k.typ) || '–')}: ${esc([k.name, k.telefon, k.email].filter(Boolean).join(' · ') || '–')}</span></label>`).join('');
+  $('#kk-filter').value = '';
+  renderKkZiele('');
+  $('#modal-kontakte').classList.remove('hidden');
+}
+
+function renderKkZiele(filterText) {
+  const g = findeGeraet(zustand.kontakteQuelle);
+  const f = (filterText || '').toLowerCase();
+  const vorher = new Set($$('#kk-geraete input:checked').map((el) => Number(el.value)));
+  const ziele = aktiveGeraete().filter((z) => z.id !== g.id)
+    .filter((z) => !f || [z.name, z.manufacturer, z.model, z.location, z.department]
+      .some((w) => (w || '').toLowerCase().includes(f)));
+  $('#kk-geraete').innerHTML = ziele.map((z) => `
+    <label class="kk-row"><input type="checkbox" value="${z.id}" ${vorher.has(z.id) ? 'checked' : ''}>
+      <span>${esc(z.name)} <small>· ${esc(z.manufacturer)} · ${esc(z.location)}</small></span></label>`).join('')
+    || `<p class="empty-hint">${t('leer.keineGeraete')}</p>`;
+  $('#kk-hersteller').textContent = t('kontakte.gleicherHersteller', {
+    n: aktiveGeraete().filter((z) => z.id !== g.id && z.manufacturer === g.manufacturer).length,
+  });
+}
+
+function kopiereKontakte() {
+  const g = findeGeraet(zustand.kontakteQuelle);
+  const kontakte = $$('#kk-kontakte input:checked').map((el) => g.kontakte[Number(el.value)]).filter(Boolean);
+  const ziele = $$('#kk-geraete input:checked').map((el) => findeGeraet(Number(el.value))).filter(Boolean);
+  if (!kontakte.length || !ziele.length) return;
+  let geraeteMitNeuen = 0;
+  for (const ziel of ziele) {
+    ziel.kontakte = ziel.kontakte || [];
+    const vorhanden = (k) => ziel.kontakte.some((x) =>
+      (x.typ || '').toLowerCase() === (k.typ || '').toLowerCase()
+      && (x.name || '').toLowerCase() === (k.name || '').toLowerCase()
+      && (x.email || '').toLowerCase() === (k.email || '').toLowerCase());
+    const neue = kontakte.filter((k) => !vorhanden(k));
+    if (!neue.length) continue;
+    for (const k of neue) ziel.kontakte.push({ ...k, id: neueId() });
+    syncKontakteAltfelder(ziel);
+    systemEreignis(ziel, 'sys.kontakteKopiert', { n: neue.length, von: g.name, name: nutzer.name });
+    geraeteMitNeuen++;
+  }
+  speichereDaten(daten);
+  $('#modal-kontakte').classList.add('hidden');
+  alert(t('kontakte.erfolg', { n: geraeteMitNeuen }));
+  renderDetail();
+  renderAlles(false);
 }
 
 function dokumenteHtml(g) {
@@ -1433,6 +1569,39 @@ function oeffneQrModal() {
   $('#modal-qr').classList.remove('hidden');
 }
 
+/* ===================== Geräte-Archiv (R4) ===================== */
+
+function renderArchiv() {
+  const liste = daten.devices.filter((g) => g.archiviert)
+    .sort((a, b) => (b.archiviert.am || '').localeCompare(a.archiviert.am || ''));
+  $('#archiv-leer').classList.toggle('hidden', liste.length > 0);
+  $('#archiv-tbody').innerHTML = liste.map((g) => `
+    <tr data-id="${g.id}">
+      <td><span class="device-name">${esc(g.name)}</span><br><span class="device-sub">${esc(g.model || '')} · ${t('zelle.inv')} ${esc(g.inventoryNo || '–')}</span></td>
+      <td>${esc(tBegriff(g.category))}</td>
+      <td>${esc(g.manufacturer)}</td>
+      <td>${esc(g.location)}</td>
+      <td>${formatDatum(g.archiviert.am)}</td>
+      <td>${esc(g.archiviert.von || '–')}</td>
+      <td>
+        <button class="btn btn-sm btn-detail">${t('zelle.details')}</button>
+        <button class="btn btn-sm archiv-restore admin-only${istAdmin() ? '' : ' hidden'}">${t('aktion.wiederherstellen')}</button>
+      </td>
+    </tr>`).join('');
+  $$('#archiv-tbody tr[data-id]').forEach((tr) => {
+    tr.querySelector('.btn-detail').addEventListener('click', () => oeffneDetail(Number(tr.dataset.id)));
+    const restore = tr.querySelector('.archiv-restore');
+    restore.addEventListener('click', () => {
+      const g = findeGeraet(Number(tr.dataset.id));
+      g.archiviert = null;
+      systemEreignis(g, 'sys.wiederhergestellt', { name: nutzer.name });
+      speichereDaten(daten);
+      renderArchiv();
+      renderAlles(false);
+    });
+  });
+}
+
 /* ===================== Belegungs-Übersicht (Tab) ===================== */
 
 function renderBelegungsUebersicht() {
@@ -1441,7 +1610,7 @@ function renderBelegungsUebersicht() {
   const jetzt = new Date();
   const horizont = new Date(); horizont.setDate(horizont.getDate() + 14);
   const items = [];
-  for (const g of daten.devices) {
+  for (const g of aktiveGeraete()) {
     if (standort && g.location !== standort) continue;
     if (abteilung && g.department !== abteilung) continue;
     for (const b of g.belegungen || []) {
@@ -1487,7 +1656,7 @@ function kalenderEintraege() {
   const abteilung = $('#kal-abteilung').value;
   const art = $('#kal-art').value;
   const items = [];
-  for (const g of daten.devices) {
+  for (const g of aktiveGeraete()) {
     if (g.status === 'ausser_betrieb') continue;
     if (standort && g.location !== standort) continue;
     if (abteilung && g.department !== abteilung) continue;
@@ -1707,17 +1876,19 @@ function renderAlles(filterNeu = true) {
   if (!$('#view-statistik').classList.contains('hidden')) renderStatistik();
   if (!$('#view-kalender').classList.contains('hidden')) renderKalender();
   if (!$('#view-belegung').classList.contains('hidden')) renderBelegungsUebersicht();
+  if (!$('#view-archiv').classList.contains('hidden')) renderArchiv();
 }
 
 function initEvents() {
   // Tabs
   $$('.tab').forEach((tab) => tab.addEventListener('click', () => {
     $$('.tab').forEach((t) => t.classList.toggle('active', t === tab));
-    ['uebersicht', 'belegung', 'kalender', 'statistik'].forEach((v) =>
+    ['uebersicht', 'belegung', 'kalender', 'statistik', 'archiv'].forEach((v) =>
       $('#view-' + v).classList.toggle('hidden', tab.dataset.view !== v));
     if (tab.dataset.view === 'statistik') renderStatistik();
     if (tab.dataset.view === 'kalender') renderKalender();
     if (tab.dataset.view === 'belegung') renderBelegungsUebersicht();
+    if (tab.dataset.view === 'archiv') renderArchiv();
   }));
 
   // Filter Übersicht
@@ -1775,6 +1946,28 @@ function initEvents() {
     const row = $('#pruef-editor').lastElementChild;
     row.querySelector('.pe-del').addEventListener('click', () => row.remove());
   });
+
+  // Kontakt-Editor: Zeile hinzufügen (Ä3)
+  $('#kontakt-add').addEventListener('click', () => {
+    $('#kontakt-editor').insertAdjacentHTML('beforeend', kontaktEditorZeile(null));
+    const row = $('#kontakt-editor').lastElementChild;
+    row.querySelector('.ke-del').addEventListener('click', () => row.remove());
+  });
+
+  // Kontakte-kopieren-Dialog (Ä3)
+  $('#kk-filter').addEventListener('input', (e) => renderKkZiele(e.target.value));
+  $('#kk-hersteller').addEventListener('click', () => {
+    const g = findeGeraet(zustand.kontakteQuelle);
+    $('#kk-filter').value = g.manufacturer;
+    renderKkZiele(g.manufacturer);
+    $$('#kk-geraete input').forEach((el) => { el.checked = true; });
+  });
+  $('#kk-alle').addEventListener('click', () => {
+    const alle = $$('#kk-geraete input');
+    const zielwert = alle.some((el) => !el.checked);
+    alle.forEach((el) => { el.checked = zielwert; });
+  });
+  $('#kk-uebernehmen').addEventListener('click', kopiereKontakte);
 
   // Zeichnungs-Viewer: Admin platziert Marker per Klick aufs Bild
   $('#zg-bildwrap').addEventListener('click', (ev) => {

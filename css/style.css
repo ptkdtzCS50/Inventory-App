@@ -249,7 +249,8 @@ tbody tr:last-child td { border-bottom: none; }
 
 /* ===== Prüfungen (Detailansicht + Formular-Editor) ===== */
 .pruef-section { margin-bottom: 18px; }
-.pruef-table th, .pruef-table td { padding: 8px 10px; font-size: 13px; }
+.pruef-table th, .pruef-table td,
+.kontakt-table th, .kontakt-table td { padding: 8px 10px; font-size: 13px; }
 .pruef-editor-wrap { grid-column: 1 / -1; border-top: 1px dashed var(--border); padding-top: 10px; }
 .pruef-editor-titel { display: block; font-size: 13px; font-weight: 600; margin-bottom: 8px; }
 .pruef-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
@@ -434,6 +435,31 @@ tbody tr:last-child td { border-bottom: none; }
 #status-grund, #status-kosten {
   width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px;
   font: inherit; font-size: 14px;
+}
+
+/* ===== Kontakte (flexible Kontaktliste + Kopier-Dialog) ===== */
+#modal-kontakte { z-index: 60; } /* liegt über dem Detail-Modal */
+.kontakt-editor-wrap { grid-column: 1 / -1; }
+.kontakt-row {
+  display: grid; grid-template-columns: 130px 1fr 140px 1fr auto; gap: 6px;
+  margin-bottom: 6px; align-items: center;
+}
+.kontakt-row input {
+  padding: 7px 9px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px;
+}
+@media (max-width: 700px) { .kontakt-row { grid-template-columns: 1fr 1fr; } }
+.kontakt-tools { margin-top: 8px; }
+.kk-label { display: block; font-size: 13px; font-weight: 600; margin: 12px 0 4px; }
+.kk-liste {
+  border: 1px solid var(--border); border-radius: 10px; padding: 6px 10px;
+  display: grid; gap: 2px;
+}
+.kk-geraete { max-height: 240px; overflow: auto; }
+.kk-row { display: flex; align-items: center; gap: 8px; font-size: 14px; padding: 3px 0; cursor: pointer; }
+.kk-row small { color: var(--muted); }
+.kk-tools { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+.kk-tools input[type="search"] {
+  flex: 1; min-width: 140px; padding: 7px 9px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px;
 }
 
 /* ===== QR-Filter-Hinweisleiste ===== */

@@ -133,7 +133,40 @@ function defektEreignisse(g) {
 /* ---------- Speicher ---------- */
 
 /** Später ergänzte Felder in bereits gespeicherten Datenbeständen nachrüsten. */
-const NEUE_FELDER = ['room', 'team', 'salesName', 'salesPhone', 'salesEmail', 'networkAddress'];
+const NEUE_FELDER = ['room', 'team', 'salesName', 'salesPhone', 'salesEmail', 'networkAddress',
+  'responsible', 'responsibleKuerzel'];
+
+/**
+ * Flexible Kontaktliste (Ä3): g.kontakte = [{ id, typ, name, telefon, email }].
+ * Altbestand: die festen Service-/Vertriebsfelder werden einmalig überführt.
+ */
+function stelleKontakteSicher(g) {
+  if (g.kontakte) return;
+  g.kontakte = [];
+  if (g.distContact || g.distPhone || g.distEmail) {
+    g.kontakte.push({ id: neueId(), typ: 'Service', name: g.distContact || '', telefon: g.distPhone || '', email: g.distEmail || '' });
+  }
+  if (g.salesName || g.salesPhone || g.salesEmail) {
+    g.kontakte.push({ id: neueId(), typ: 'Vertrieb', name: g.salesName || '', telefon: g.salesPhone || '', email: g.salesEmail || '' });
+  }
+}
+
+/**
+ * Kontaktliste zurück auf die Altfelder spiegeln, damit Störungs-Mail,
+ * Spaltenanzeige und MCP-Server weiter funktionieren (erster Service-
+ * bzw. Vertriebskontakt gewinnt).
+ */
+function syncKontakteAltfelder(g) {
+  const passt = (k, begriff) => (k.typ || '').toLowerCase().includes(begriff);
+  const service = (g.kontakte || []).find((k) => passt(k, 'service') || passt(k, 'hotline')) || (g.kontakte || [])[0];
+  const vertrieb = (g.kontakte || []).find((k) => passt(k, 'vertrieb') || passt(k, 'sales'));
+  g.distContact = service ? service.name : '';
+  g.distPhone = service ? service.telefon : '';
+  g.distEmail = service ? service.email : '';
+  g.salesName = vertrieb ? vertrieb.name : '';
+  g.salesPhone = vertrieb ? vertrieb.telefon : '';
+  g.salesEmail = vertrieb ? vertrieb.email : '';
+}
 
 function migriereDaten(daten) {
   const seed = new Map(erzeugeDemoDaten().map((g) => [g.id, g]));
@@ -143,6 +176,9 @@ function migriereDaten(daten) {
       if (g[feld] === undefined) g[feld] = s ? (s[feld] ?? '') : '';
     }
     if (!g.custom) g.custom = {};
+    // Archiv (R4) und Kontaktliste (Ä3) nachrüsten
+    if (g.archiviert === undefined) g.archiviert = null;
+    stelleKontakteSicher(g);
     // Altbestand: einzelnes Wartungsintervall -> Prüfarten-Liste überführen
     if (!g.pruefungen) {
       if (s && s.pruefungen) g.pruefungen = JSON.parse(JSON.stringify(s.pruefungen));
@@ -297,6 +333,7 @@ function erzeugeDemoDaten() {
       model: 'RM2255', serial: 'LM-88341', inventoryNo: 'PATH-0001',
       location: 'Hauptstandort Klinikum', department: 'Histologie',
       room: 'EG 012', team: 'Team Zuschnitt & Schnitt', ...leica,
+      responsible: 'M. Schneider', responsibleKuerzel: 'MSC',
       purchaseDate: monateVor(50), warrantyEnd: monateVor(26),
       pruefungen: [{ art: 'Wartung', intervall: 12, letzte: monateVor(8) }],
       dokumente: [
@@ -312,6 +349,7 @@ function erzeugeDemoDaten() {
       networkAddress: '10.12.4.21',
       location: 'Hauptstandort Klinikum', department: 'Histologie',
       room: 'EG 014', team: 'Team Färbung', ...sakura,
+      responsible: 'K. Hoffmann', responsibleKuerzel: 'KHO',
       purchaseDate: monateVor(30), warrantyEnd: monateVor(6),
       pruefungen: [{ art: 'Wartung', intervall: 6, letzte: tageVor(170) }, { art: 'STK', intervall: 24, letzte: monateVor(20) }],
       dokumente: [
@@ -344,6 +382,7 @@ function erzeugeDemoDaten() {
       networkAddress: '10.12.4.22',
       location: 'Hauptstandort Klinikum', department: 'Histologie',
       room: 'EG 014', team: 'Team Färbung', ...leica,
+      responsible: 'K. Hoffmann', responsibleKuerzel: 'KHO',
       purchaseDate: monateVor(64), warrantyEnd: monateVor(40),
       pruefungen: [{ art: 'Wartung', intervall: 12, letzte: monateVor(5) }],
       status: 'defekt', defectSince: tageVor(3),
@@ -371,6 +410,7 @@ function erzeugeDemoDaten() {
       networkAddress: '10.12.4.30',
       location: 'Hauptstandort Klinikum', department: 'Immunhistochemie',
       room: 'OG1 105', team: 'Team IHC', ...roche,
+      responsible: 'S. Albrecht', responsibleKuerzel: 'SAL',
       purchaseDate: monateVor(44), warrantyEnd: monateVor(20),
       pruefungen: [{ art: 'Wartung', intervall: 6, letzte: monateVor(7) }, { art: 'MTK', intervall: 12, letzte: monateVor(11) }],
       status: 'ok', defectSince: null,
@@ -417,6 +457,7 @@ function erzeugeDemoDaten() {
       model: 'Cytospin 4', serial: 'TF-60833', inventoryNo: 'PATH-0009',
       location: 'Hauptstandort Klinikum', department: 'Zytologie',
       room: 'OG1 112', team: 'Team Zytologie', ...thermo,
+      responsible: 'K. Hoffmann', responsibleKuerzel: 'KHO',
       purchaseDate: monateVor(48), warrantyEnd: monateVor(24),
       pruefungen: [{ art: 'Wartung', intervall: 12, letzte: monateVor(6) }, { art: 'STK', intervall: 24, letzte: monateVor(18) }],
       status: 'defekt', defectSince: tageVor(12),
@@ -433,6 +474,7 @@ function erzeugeDemoDaten() {
       networkAddress: '10.20.1.15',
       location: 'Standort Nord', department: 'Molekularpathologie',
       room: 'Nord 2.01', team: 'Team Molekularpathologie', ...thermo,
+      responsible: 'M. Weber', responsibleKuerzel: 'MWE',
       purchaseDate: monateVor(26), warrantyEnd: monateVor(2),
       pruefungen: [{ art: 'Wartung', intervall: 12, letzte: monateVor(3) }, { art: 'MTK', intervall: 12, letzte: monateVor(3) }],
       dokumente: [
@@ -479,6 +521,21 @@ function erzeugeDemoDaten() {
       pruefungen: [{ art: 'Wartung', intervall: 24, letzte: monateVor(15) }],
       status: 'ausser_betrieb', defectSince: null, defectHistory: [],
       log: [sysLog(monateVor(1), 'Status geändert: Funktionsfähig → Außer Betrieb. Grund: Arbeitsplatz derzeit nicht besetzt.')],
+    },
+    {
+      id: 14, name: 'Schlittenmikrotom (Altgerät)', category: 'Mikrotom', manufacturer: 'Leica',
+      model: 'SM2010 R', serial: 'LM-04481', inventoryNo: 'PATH-0015',
+      location: 'Hauptstandort Klinikum', department: 'Histologie',
+      room: 'UG 020', team: 'Team Zuschnitt & Schnitt', ...leica,
+      purchaseDate: monateVor(140), warrantyEnd: monateVor(116),
+      pruefungen: [],
+      status: 'ausser_betrieb', defectSince: null,
+      defectHistory: [{ start: monateVor(30), end: tageVor(Math.round(30 * 30.4) - 20), kosten: 210 }],
+      archiviert: { am: monateVor(3), von: 'M. Schneider' },
+      log: [
+        sysLog(monateVor(4), 'Status geändert: Funktionsfähig → Außer Betrieb. Grund: Ersetzt durch Rotationsmikrotom 1.'),
+        sysLog(monateVor(3), 'Gerät archiviert (M. Schneider).'),
+      ],
     },
   ];
 }

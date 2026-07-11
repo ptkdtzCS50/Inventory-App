@@ -63,6 +63,7 @@
       <button class="tab" data-view="belegung" data-i18n="tab.belegung">Belegung</button>
       <button class="tab" data-view="kalender" data-i18n="tab.kalender">Kalender</button>
       <button class="tab" data-view="statistik" data-i18n="tab.statistik">Statistik</button>
+      <button class="tab" data-view="archiv" data-i18n="tab.archiv">Archiv</button>
     </nav>
     <div class="header-right">
       <select class="sprach-wahl" title="Sprache / Language">
@@ -250,6 +251,28 @@
     <section id="kalender-liste"></section>
   </main>
 
+  <!-- ===== Ansicht: Archiv ===== -->
+  <main id="view-archiv" class="view hidden">
+    <p class="stat-note" data-i18n="archiv.note">Außer Betrieb genommene Geräte mit vollständiger Historie – nachvollziehbar statt gelöscht. Wiederherstellen jederzeit möglich (Admin).</p>
+    <section class="table-wrap">
+      <table class="device-table">
+        <thead>
+          <tr>
+            <th data-i18n="th.geraet">Gerät</th>
+            <th data-i18n="th.typ">Typ</th>
+            <th data-i18n="th.hersteller">Hersteller</th>
+            <th data-i18n="th.standort">Standort</th>
+            <th data-i18n="archiv.am">Archiviert am</th>
+            <th data-i18n="archiv.von">Archiviert von</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="archiv-tbody"></tbody>
+      </table>
+      <p id="archiv-leer" class="empty-hint hidden" data-i18n="archiv.keine">Das Archiv ist leer.</p>
+    </section>
+  </main>
+
   <footer class="app-footer">
     <img src="assets/logo.svg" alt="Avidia Pharma" class="footer-logo">
     <p>© <span class="copyright-jahr"></span> Dietz-Engineering · <span data-i18n="login.rechte">Alle Rechte vorbehalten</span> ·
@@ -278,13 +301,14 @@
         <label data-i18n="form.abteilung">Abteilung *<input type="text" id="f-department" list="dl-department" required></label>
         <label data-i18n="form.raum">Raum<input type="text" id="f-room" list="dl-room" data-i18n-ph="form.raumPh" placeholder="z. B. EG 014"></label>
         <label data-i18n="form.team">Team<input type="text" id="f-team" list="dl-team" data-i18n-ph="form.teamPh" placeholder="z. B. Team Färbung"></label>
+        <label data-i18n="form.verantwortlich">Geräteverantwortliche/r<input type="text" id="f-responsible" list="dl-responsible" data-i18n-ph="form.verantwortlichPh" placeholder="z. B. K. Hoffmann"></label>
+        <label data-i18n="form.kuerzel">Kürzel<input type="text" id="f-responsible-kuerzel" maxlength="5" data-i18n-ph="form.kuerzelPh" placeholder="z. B. KHO"></label>
         <label data-i18n="form.distributor">Distributor / Lieferant<input type="text" id="f-distributor" list="dl-distributor"></label>
-        <label data-i18n="form.serviceKontakt">Service-Kontakt (Technik)<input type="text" id="f-dist-contact" data-i18n-ph="form.serviceKontaktPh" placeholder="Ansprechpartner Hotline"></label>
-        <label data-i18n="form.telefonService">Telefon (Service-Hotline)<input type="tel" id="f-dist-phone"></label>
-        <label data-i18n="form.emailService">E-Mail (Service)<input type="email" id="f-dist-email"></label>
-        <label data-i18n="form.vertrieb">Vertrieb / Außendienst<input type="text" id="f-sales-name" data-i18n-ph="form.vertriebPh" placeholder="Name Außendienstler/in"></label>
-        <label data-i18n="form.telefonVertrieb">Telefon (Vertrieb)<input type="tel" id="f-sales-phone"></label>
-        <label data-i18n="form.emailVertrieb">E-Mail (Vertrieb)<input type="email" id="f-sales-email"></label>
+        <div class="kontakt-editor-wrap">
+          <span class="pruef-editor-titel" data-i18n="kontakte.editorTitel">Kontakte (Service, Vertrieb, Applikation …)</span>
+          <div id="kontakt-editor"></div>
+          <button type="button" id="kontakt-add" class="btn btn-sm" data-i18n="kontakte.add">+ Kontakt hinzufügen</button>
+        </div>
         <label data-i18n="dt.anschaffung">Anschaffungsdatum<input type="date" id="f-purchase"></label>
         <label data-i18n="dt.garantie">Garantieende<input type="date" id="f-warranty"></label>
         <label data-i18n="form.netzwerk">Netzwerkadresse (IP/Host)<input type="text" id="f-network" placeholder="z. B. 10.12.4.21"></label>
@@ -298,6 +322,10 @@
       <datalist id="dl-pruefart">
         <option value="Wartung"><option value="STK"><option value="MTK"><option value="Validierung">
       </datalist>
+      <datalist id="dl-kontakt-typ">
+        <option value="Service"><option value="Vertrieb"><option value="Applikation"><option value="Hotline">
+      </datalist>
+      <datalist id="dl-responsible"></datalist>
       <datalist id="dl-category"></datalist>
       <datalist id="dl-manufacturer"></datalist>
       <datalist id="dl-location"></datalist>
@@ -368,6 +396,32 @@
         <div id="zg-markerlayer"></div>
       </div>
       <p id="zg-info" class="stat-note"></p>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Modal: Kontakte auf andere Geräte kopieren ===== -->
+<div id="modal-kontakte" class="modal-backdrop hidden">
+  <div class="modal">
+    <div class="modal-head">
+      <h2><span data-i18n="kontakte.kopierenTitel">Kontakte kopieren</span> – <span id="kk-titel-geraet"></span></h2>
+      <button class="modal-close" data-close="modal-kontakte">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="stat-note" data-i18n="kontakte.kopierenHinweis">Kontakte auswählen und auf andere Geräte übernehmen – z. B. den Leica-Service auf alle Leica-Geräte. Bereits vorhandene identische Kontakte werden übersprungen.</p>
+      <label class="kk-label" data-i18n="kontakte.welche">Welche Kontakte?</label>
+      <div id="kk-kontakte" class="kk-liste"></div>
+      <label class="kk-label" data-i18n="kontakte.ziele">Auf welche Geräte?</label>
+      <div class="kk-tools">
+        <input type="search" id="kk-filter" data-i18n-ph="kontakte.filterPh" placeholder="Geräte filtern …">
+        <button type="button" id="kk-hersteller" class="btn btn-sm"></button>
+        <button type="button" id="kk-alle" class="btn btn-sm" data-i18n="kontakte.alle">Alle an/aus</button>
+      </div>
+      <div id="kk-geraete" class="kk-liste kk-geraete"></div>
+      <div class="modal-foot">
+        <button type="button" class="btn btn-ghost" data-close="modal-kontakte" data-i18n="form.abbrechen">Abbrechen</button>
+        <button type="button" id="kk-uebernehmen" class="btn btn-primary" data-i18n="kontakte.uebernehmen">Kopieren</button>
+      </div>
     </div>
   </div>
 </div>
