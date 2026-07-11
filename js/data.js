@@ -152,6 +152,10 @@ function migriereDaten(daten) {
     // Dokumente & Belegungen nachrüsten
     if (!g.dokumente) g.dokumente = s && s.dokumente ? JSON.parse(JSON.stringify(s.dokumente)) : [];
     if (!g.belegungen) g.belegungen = s && s.belegungen ? JSON.parse(JSON.stringify(s.belegungen)) : [];
+    // Ersatzteilkatalog, Explosionszeichnungen, 3D-Modelle nachrüsten
+    if (!g.ersatzteile) g.ersatzteile = s && s.ersatzteile ? JSON.parse(JSON.stringify(s.ersatzteile)) : [];
+    if (!g.zeichnungen) g.zeichnungen = s && s.zeichnungen ? JSON.parse(JSON.stringify(s.zeichnungen)) : [];
+    if (!g.modelle3d) g.modelle3d = s && s.modelle3d ? JSON.parse(JSON.stringify(s.modelle3d)) : [];
   }
   // Eigene (vom Admin definierte) Felder
   if (!daten.customFields) daten.customFields = [];
@@ -313,6 +317,18 @@ function erzeugeDemoDaten() {
       dokumente: [
         { id: 'dok-demo-2', kategorie: 'Bedienungsanleitung', name: 'Bedienungsanleitung Tissue-Tek Prisma Plus', typ: 'link', url: 'https://intranet.patho.local/doku/tissue-tek-prisma-plus.pdf' },
         { id: 'dok-demo-3', kategorie: 'Arbeitsanweisung (SOP)', name: 'SOP H&E-Färbung V3.2', typ: 'link', url: 'https://intranet.patho.local/sop/haee-faerbung-v32.pdf' },
+      ],
+      ersatzteile: [
+        { id: 'et-demo-1', pos: 1, artikelNr: 'SK-4711-P', name: 'Dosierpumpe Eindeckmedium', preis: 480, lieferant: 'Sakura Finetek Germany' },
+        { id: 'et-demo-2', pos: 2, artikelNr: 'SK-2205-F', name: 'Feinfilter Reagenzienzufuhr (5er-Pack)', preis: 65, lieferant: 'Sakura Finetek Germany' },
+        { id: 'et-demo-3', pos: 3, artikelNr: 'SK-9012-D', name: 'Dichtungssatz Färbekammer', preis: 120, lieferant: 'Sakura Finetek Germany' },
+      ],
+      zeichnungen: [
+        { id: 'zg-demo-1', name: 'Explosionszeichnung Färbemodul', typ: 'datei', url: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2MDAiIGhlaWdodD0iNDAwIj4KPHJlY3Qgd2lkdGg9IjYwMCIgaGVpZ2h0PSI0MDAiIGZpbGw9IiNmZmZmZmYiLz4KPHRleHQgeD0iMjAiIHk9IjI4IiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM2NDc0OGIiPkV4cGxvc2lvbnN6ZWljaG51bmc6IEbDpHJiZW1vZHVsIChEZW1vKTwvdGV4dD4KPHJlY3QgeD0iNzAiIHk9IjEzMCIgd2lkdGg9IjIwMCIgaGVpZ2h0PSIxODAiIHJ4PSIxMiIgZmlsbD0iI2UyZThmMCIgc3Ryb2tlPSIjNjQ3NDhiIiBzdHJva2Utd2lkdGg9IjIiLz4KPHRleHQgeD0iMTE1IiB5PSIyMjUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxMiIgZmlsbD0iIzQ3NTU2OSI+R3J1bmRtb2R1bDwvdGV4dD4KPGxpbmUgeDE9IjI3MCIgeTE9IjE2MCIgeDI9IjMzMCIgeTI9IjEwNSIgc3Ryb2tlPSIjOTRhM2I4IiBzdHJva2UtZGFzaGFycmF5PSI1LDQiLz4KPHJlY3QgeD0iMzMwIiB5PSI3NSIgd2lkdGg9IjEwMCIgaGVpZ2h0PSI2MCIgcng9IjgiIGZpbGw9IiNjYmQ1ZTEiIHN0cm9rZT0iIzY0NzQ4YiIgc3Ryb2tlLXdpZHRoPSIyIi8+Cjx0ZXh0IHg9IjM0MyIgeT0iMTEwIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTEiIGZpbGw9IiM0NzU1NjkiPkRvc2llcnB1bXBlPC90ZXh0Pgo8bGluZSB4MT0iMjcwIiB5MT0iMjAwIiB4Mj0iMzYwIiB5Mj0iMjAwIiBzdHJva2U9IiM5NGEzYjgiIHN0cm9rZS1kYXNoYXJyYXk9IjUsNCIvPgo8cmVjdCB4PSIzNjAiIHk9IjE4MCIgd2lkdGg9IjEzMCIgaGVpZ2h0PSI0MCIgcng9IjgiIGZpbGw9IiNjYmQ1ZTEiIHN0cm9rZT0iIzY0NzQ4YiIgc3Ryb2tlLXdpZHRoPSIyIi8+Cjx0ZXh0IHg9IjM3OCIgeT0iMjA0IiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTEiIGZpbGw9IiM0NzU1NjkiPkZlaW5maWx0ZXI8L3RleHQ+CjxsaW5lIHgxPSIyNzAiIHkxPSIyNzAiIHgyPSIzODAiIHkyPSIzMDAiIHN0cm9rZT0iIzk0YTNiOCIgc3Ryb2tlLWRhc2hhcnJheT0iNSw0Ii8+CjxjaXJjbGUgY3g9IjQyMCIgY3k9IjMwNSIgcj0iMzgiIGZpbGw9IiNjYmQ1ZTEiIHN0cm9rZT0iIzY0NzQ4YiIgc3Ryb2tlLXdpZHRoPSIyIi8+Cjx0ZXh0IHg9IjM4OCIgeT0iMzA5IiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTEiIGZpbGw9IiM0NzU1NjkiPkRpY2h0dW5nc3NhdHo8L3RleHQ+Cjwvc3ZnPg==',
+          marker: [{ teilId: 'et-demo-1', x: 63, y: 26 }, { teilId: 'et-demo-2', x: 71, y: 50 }, { teilId: 'et-demo-3', x: 70, y: 76 }] },
+      ],
+      modelle3d: [
+        { id: 'm3-demo-1', name: 'Färbemodul (3D-Modell)', format: 'glb', typ: 'link', url: 'https://intranet.patho.local/3d/prisma-faerbemodul.glb' },
       ],
       belegungen: [
         { id: 'bel-demo-1', von: zeitAb(1, '08:00'), bis: zeitAb(1, '12:00'), wer: 'K. Hoffmann', zweck: 'H&E-Färbelauf Routine' },

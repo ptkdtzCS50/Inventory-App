@@ -376,3 +376,38 @@ tbody tr:last-child td { border-bottom: none; }
   font-size: 10px; font-weight: 600; padding: 1px 7px; border-radius: 999px;
   cursor: help; margin-left: 4px;
 }
+
+/* ===== Ersatzteilkatalog, Explosionszeichnungen, 3D ===== */
+.et-table th, .et-table td { padding: 7px 10px; font-size: 13px; }
+.et-form { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.et-form input {
+  padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px;
+}
+.et-form .et-pos { width: 64px; }
+.et-form .et-preis { width: 110px; }
+.et-form .et-nr { width: 130px; }
+.et-form .et-name { flex: 1; min-width: 160px; }
+.zg-row, .d3-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 4px; border-bottom: 1px solid var(--border); font-size: 14px;
+}
+.zg-row strong, .d3-row strong { flex: 1; }
+.d3-format {
+  background: var(--accent-bg); color: var(--blue-dark); font-size: 11px; font-weight: 700;
+  padding: 1px 8px; border-radius: 999px; text-transform: uppercase;
+}
+.zg-bildwrap { position: relative; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: #fff; }
+.zg-bildwrap img { display: block; width: 100%; height: auto; }
+#zg-markerlayer { position: absolute; inset: 0; }
+.zg-marker {
+  position: absolute; transform: translate(-50%, -50%);
+  width: 26px; height: 26px; border-radius: 50%;
+  background: var(--blue); color: #fff; font-size: 13px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  border: 2px solid #fff; box-shadow: 0 1px 5px rgba(0,0,0,.35); cursor: pointer;
+}
+.zg-marker:hover { background: var(--blue-dark); }
+.et-highlight td { background: var(--accent-bg) !important; }
+
+/* Zeichnungs-Viewer liegt über dem Detail-Modal */
+#modal-zeichnung { z-index: 60; }

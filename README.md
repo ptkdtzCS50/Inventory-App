@@ -140,6 +140,25 @@ Der Tab **„Belegung"** zeigt alle Reservierungen der nächsten 14 Tage –
 nach Tag gruppiert, filterbar nach Standort und Abteilung, mit
 „läuft"-Markierung für aktuell aktive Belegungen.
 
+### Ersatzteilkatalog, Explosionszeichnungen & 3D (herstellerfähig)
+Pro Gerät gibt es einen **Ersatzteilkatalog** (Position, Artikelnummer,
+Bezeichnung, Preis in CHF, Lieferant) – manuell pflegbar oder per
+**Import in den gängigen Formaten**: CSV (Excel-kompatibel, Kopfzeilen in
+DE/EN/FR/IT), JSON und **BMEcat-XML** (B2B-Katalogstandard). Damit können
+Hersteller und Distributoren den Katalog direkt füttern; jeder Import wird
+im Geräteverlauf protokolliert.
+
+**Explosionszeichnungen** (Bild/SVG als Link oder Upload) öffnen sich im
+integrierten Viewer mit **nummerierten Positionsmarkern**: Klick auf einen
+Marker zeigt Artikelnummer, Bezeichnung und Preis des Teils; Admins
+platzieren neue Marker per Klick auf die Zeichnung (Teil wählen → klicken).
+
+**3D-Modelle** (GLB/glTF, STL, STEP, OBJ) werden als verwaltete Assets
+hinterlegt – als Link auf das Herstellerportal/Netzlaufwerk (empfohlen)
+oder als Datei; ein eingebetteter 3D-Viewer ist als Ausbauschritt
+vorgesehen. Über die Claude-Integration lässt sich der Katalog
+durchsuchen („Was kostet die Dosierpumpe für den Färbeautomaten?").
+
 ### QR-Code-Etiketten
 „🏷 QR-Etiketten" erzeugt einen druckbaren Etikettenbogen für die aktuell
 gefilterte Geräteliste (QR-Code + Name, Modell, Inventar-/Seriennummer,

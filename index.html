@@ -350,6 +350,25 @@
   </div>
 </div>
 
+<!-- ===== Modal: Explosionszeichnung ===== -->
+<div id="modal-zeichnung" class="modal-backdrop hidden">
+  <div class="modal modal-lg">
+    <div class="modal-head">
+      <h2 id="zg-titel"></h2>
+      <button class="modal-close" data-close="modal-zeichnung">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="stat-note admin-only zg-markerzeile"><span data-i18n="zg.markerModus">Marker setzen: Teil wählen und auf die Zeichnung klicken →</span>
+        <select id="zg-teil"></select></p>
+      <div id="zg-bildwrap" class="zg-bildwrap">
+        <img id="zg-bild" alt="">
+        <div id="zg-markerlayer"></div>
+      </div>
+      <p id="zg-info" class="stat-note"></p>
+    </div>
+  </div>
+</div>
+
 <!-- ===== Modal: Gerätedetails ===== -->
 <div id="modal-detail" class="modal-backdrop hidden">
   <div class="modal modal-lg">

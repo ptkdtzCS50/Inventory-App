@@ -20,6 +20,8 @@ Claude kann dann direkt im Chat:
   defekt, Rotor blockiert")
 - **Service-Kontaktaufnahme vorbereiten** („Entwirf die Störungsmeldung an
   Thermo Fisher für Gerät 9")
+- **Ersatzteile nachschlagen** („Was kostet die Dosierpumpe für den
+  Färbeautomaten und wer liefert sie?")
 - **Statistiken abfragen** („Welcher Hersteller verursacht die meisten
   Kosten pro Gerät?")
 - **Verlaufseinträge einmalig übersetzen und speichern** („Übersetze alle

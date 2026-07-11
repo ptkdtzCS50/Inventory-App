@@ -483,6 +483,7 @@ function renderDetail() {
         : `<p><small>${t('pruef.keine')}</small></p>`}
     </div>
     ${dokumenteHtml(g)}
+    ${ersatzteileHtml(g)}
     ${belegungHtml(g)}
     <div class="detail-actions">${aktionen.join('')}</div>
     <div class="detail-section">
@@ -556,6 +557,106 @@ function renderDetail() {
     };
     leser.readAsDataURL(datei);
   });
+
+  // --- Ersatzteile ---
+  $('#et-form').addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    const name = $('#et-name').value.trim();
+    if (!name) return;
+    g.ersatzteile.push({
+      id: neueId(),
+      pos: Number($('#et-pos').value) || (Math.max(0, ...g.ersatzteile.map((e) => Number(e.pos) || 0)) + 1),
+      artikelNr: $('#et-nr').value.trim(),
+      name,
+      preis: parsePreis($('#et-preis').value),
+      lieferant: $('#et-lieferant').value.trim(),
+    });
+    speichereDaten(daten);
+    renderDetail();
+  });
+  $$('#detail-body .et-del').forEach((btn) => btn.addEventListener('click', () => {
+    const teil = g.ersatzteile.find((e) => e.id === btn.closest('tr').dataset.teil);
+    if (!teil || !confirm(t('et.entfernenFrage', { name: teil.name }))) return;
+    g.ersatzteile = g.ersatzteile.filter((e) => e.id !== teil.id);
+    speichereDaten(daten);
+    renderDetail();
+  }));
+  $('#et-import-btn').addEventListener('click', () => $('#et-import').click());
+  $('#et-import').addEventListener('change', () => {
+    const datei = $('#et-import').files[0];
+    if (!datei) return;
+    const leser = new FileReader();
+    leser.onload = () => {
+      try {
+        const n = importiereErsatzteile(g, datei, leser.result);
+        if (n > 0) {
+          systemEreignis(g, 'sys.etImport', { n, datei: datei.name, name: nutzer.name });
+          speichereDaten(daten);
+          renderDetail();
+          alert(t('et.importErgebnis', { n }));
+        }
+      } catch (e) {
+        alert(t('et.importFehler', { fehler: e.message }));
+      }
+    };
+    leser.readAsText(datei);
+  });
+
+  // --- Explosionszeichnungen ---
+  $$('#detail-body .zg-open').forEach((btn) => btn.addEventListener('click', () => {
+    const z = g.zeichnungen.find((x) => x.id === btn.closest('.zg-row').dataset.zg);
+    if (z) oeffneZeichnung(g, z);
+  }));
+  $$('#detail-body .zg-del').forEach((btn) => btn.addEventListener('click', () => {
+    const z = g.zeichnungen.find((x) => x.id === btn.closest('.zg-row').dataset.zg);
+    if (!z || !confirm(t('zg.entfernenFrage', { name: z.name }))) return;
+    g.zeichnungen = g.zeichnungen.filter((x) => x.id !== z.id);
+    speichereDaten(daten);
+    renderDetail();
+  }));
+  $('#zg-form').addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    const url = $('#zg-url').value.trim();
+    if (!url) { alert(t('dok.linkFehlt')); return; }
+    g.zeichnungen.push({ id: neueId(), name: $('#zg-name').value.trim() || url, typ: 'link', url, marker: [] });
+    speichereDaten(daten);
+    renderDetail();
+  });
+  $('#zg-datei-btn').addEventListener('click', () => $('#zg-datei').click());
+  $('#zg-datei').addEventListener('change', () => {
+    const datei = $('#zg-datei').files[0];
+    if (!datei) return;
+    if (datei.size > DOK_MAX_BYTES) { alert(t('dok.zuGross')); return; }
+    const leser = new FileReader();
+    leser.onload = () => {
+      g.zeichnungen.push({ id: neueId(), name: $('#zg-name').value.trim() || datei.name, typ: 'datei', url: leser.result, marker: [] });
+      speichereDaten(daten);
+      renderDetail();
+    };
+    leser.readAsDataURL(datei);
+  });
+
+  // --- 3D-Modelle ---
+  $('#d3-form').addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    const url = $('#d3-url').value.trim();
+    if (!url) { alert(t('dok.linkFehlt')); return; }
+    const endung = url.toLowerCase().split('.').pop().split(/[?#]/)[0];
+    g.modelle3d.push({
+      id: neueId(), name: $('#d3-name').value.trim() || url,
+      format: FORMAT_3D.includes(endung) ? (endung === 'stp' ? 'step' : endung) : '3d',
+      typ: 'link', url,
+    });
+    speichereDaten(daten);
+    renderDetail();
+  });
+  $$('#detail-body .d3-del').forEach((btn) => btn.addEventListener('click', () => {
+    const m = g.modelle3d.find((x) => x.id === btn.closest('.d3-row').dataset.d3);
+    if (!m || !confirm(t('d3.entfernenFrage', { name: m.name }))) return;
+    g.modelle3d = g.modelle3d.filter((x) => x.id !== m.id);
+    speichereDaten(daten);
+    renderDetail();
+  }));
 
   // --- Belegung ---
   $('#beleg-form').addEventListener('submit', (ev) => {
@@ -1005,6 +1106,192 @@ function dokumenteHtml(g) {
     </div>`;
 }
 
+/* ===================== Ersatzteilkatalog & Zeichnungen ===================== */
+
+const IMPORT_SPALTEN = {
+  pos: ['pos', 'position', 'nr', 'no'],
+  artikelNr: ['artikelnr', 'artikel-nr', 'artikelnummer', 'part no', 'partno', 'part_number', 'sku', 'supplier_aid', 'ref', 'cod. art.', 'codart'],
+  name: ['bezeichnung', 'name', 'benennung', 'description', 'beschreibung', 'désignation', 'descrizione'],
+  preis: ['preis', 'price', 'prix', 'prezzo', 'preis (chf)', 'price (chf)'],
+  lieferant: ['lieferant', 'supplier', 'hersteller', 'manufacturer', 'fournisseur', 'fornitore'],
+};
+
+function ordneSpalteZu(kopf) {
+  const k = kopf.trim().toLowerCase();
+  for (const [feld, namen] of Object.entries(IMPORT_SPALTEN)) {
+    if (namen.includes(k)) return feld;
+  }
+  return null;
+}
+
+function parsePreis(wert) {
+  if (wert === null || wert === undefined || wert === '') return null;
+  const zahl = parseFloat(String(wert).replace(/'/g, '').replace(',', '.'));
+  return isNaN(zahl) ? null : zahl;
+}
+
+/** CSV-Import (Komma oder Semikolon, Kopfzeile in DE/EN/FR/IT). */
+function parseErsatzteileCSV(text) {
+  const zeilen = text.split(/\r?\n/).filter((z) => z.trim());
+  if (zeilen.length < 2) return [];
+  const trenner = (zeilen[0].match(/;/g) || []).length >= (zeilen[0].match(/,/g) || []).length ? ';' : ',';
+  const spalte = (zeile) => zeile.split(trenner).map((f) => f.trim().replace(/^"|"$/g, ''));
+  const felder = spalte(zeilen[0]).map(ordneSpalteZu);
+  return zeilen.slice(1).map((zeile) => {
+    const werte = spalte(zeile);
+    const teil = {};
+    felder.forEach((feld, i) => { if (feld) teil[feld] = werte[i]; });
+    return teil;
+  }).filter((teil) => teil.artikelNr || teil.name);
+}
+
+/** JSON-Import: Array von Objekten mit flexiblen Schlüsselnamen. */
+function parseErsatzteileJSON(text) {
+  const arr = JSON.parse(text);
+  if (!Array.isArray(arr)) return [];
+  return arr.map((obj) => {
+    const teil = {};
+    for (const [k, v] of Object.entries(obj)) {
+      const feld = ordneSpalteZu(k);
+      if (feld) teil[feld] = v;
+    }
+    return teil;
+  }).filter((teil) => teil.artikelNr || teil.name);
+}
+
+/** BMEcat-Import (XML-Katalogstandard): ARTICLE/PRODUCT-Elemente. */
+function parseErsatzteileBMEcat(text) {
+  const dom = new DOMParser().parseFromString(text, 'text/xml');
+  const artikel = [...dom.querySelectorAll('ARTICLE, PRODUCT')];
+  return artikel.map((a) => {
+    const wert = (sel) => { const el = a.querySelector(sel); return el ? el.textContent.trim() : ''; };
+    return {
+      artikelNr: wert('SUPPLIER_AID, SUPPLIER_PID'),
+      name: wert('DESCRIPTION_SHORT'),
+      preis: wert('PRICE_AMOUNT'),
+      lieferant: wert('MANUFACTURER_NAME'),
+    };
+  }).filter((teil) => teil.artikelNr || teil.name);
+}
+
+function importiereErsatzteile(g, datei, text) {
+  const endung = datei.name.toLowerCase().split('.').pop();
+  let teile;
+  if (endung === 'csv') teile = parseErsatzteileCSV(text);
+  else if (endung === 'json') teile = parseErsatzteileJSON(text);
+  else teile = parseErsatzteileBMEcat(text); // .xml / BMEcat
+  if (!teile.length) { alert(t('et.importLeer')); return 0; }
+  let pos = Math.max(0, ...(g.ersatzteile || []).map((e) => Number(e.pos) || 0));
+  for (const teil of teile) {
+    g.ersatzteile.push({
+      id: neueId(),
+      pos: Number(teil.pos) || ++pos,
+      artikelNr: String(teil.artikelNr || '').trim(),
+      name: String(teil.name || '').trim(),
+      preis: parsePreis(teil.preis),
+      lieferant: String(teil.lieferant || '').trim(),
+    });
+  }
+  return teile.length;
+}
+
+const FORMAT_3D = ['glb', 'gltf', 'stl', 'step', 'stp', 'obj'];
+
+function ersatzteileHtml(g) {
+  const teile = [...(g.ersatzteile || [])].sort((a, b) => (a.pos || 0) - (b.pos || 0));
+  const tabelle = teile.length ? `
+    <div class="table-wrap"><table class="et-table" id="et-table">
+      <thead><tr><th>${t('et.pos')}</th><th>${t('et.artikelnr')}</th><th>${t('et.bezeichnung')}</th>
+      <th class="num">${t('et.preis')}</th><th>${t('et.lieferant')}</th><th></th></tr></thead>
+      <tbody>${teile.map((e) => `<tr data-teil="${esc(e.id)}">
+        <td>${e.pos || '–'}</td><td>${esc(e.artikelNr || '–')}</td><td>${esc(e.name)}</td>
+        <td class="num">${e.preis !== null && e.preis !== undefined ? geld(e.preis) : '–'}</td>
+        <td>${esc(e.lieferant || '–')}</td>
+        <td>${istAdmin() ? '<button type="button" class="btn btn-sm btn-danger et-del">🗑</button>' : ''}</td>
+      </tr>`).join('')}</tbody></table></div>` : `<p><small>${t('et.keine')}</small></p>`;
+
+  const zeichnungen = (g.zeichnungen || []).map((z) => `
+    <div class="zg-row" data-zg="${esc(z.id)}">
+      <span>🧩</span><strong>${esc(z.name)}</strong>
+      <button type="button" class="btn btn-sm zg-open">${t('zg.oeffnen')}</button>
+      ${istAdmin() ? '<button type="button" class="btn btn-sm btn-danger zg-del">🗑</button>' : ''}
+    </div>`).join('') || `<p><small>${t('zg.keine')}</small></p>`;
+
+  const modelle = (g.modelle3d || []).map((m) => `
+    <div class="d3-row" data-d3="${esc(m.id)}">
+      <span class="d3-format">${esc(m.format)}</span><strong>${esc(m.name)}</strong>
+      <a class="btn btn-sm" href="${esc(m.url)}" target="_blank" download>${t('zg.oeffnen')}</a>
+      ${istAdmin() ? '<button type="button" class="btn btn-sm btn-danger d3-del">🗑</button>' : ''}
+    </div>`).join('') || `<p><small>${t('d3.keine')}</small></p>`;
+
+  return `
+    <div class="detail-section">
+      <h3>${t('et.titel')}</h3>
+      ${tabelle}
+      <form id="et-form" class="et-form">
+        <input type="number" class="et-pos" id="et-pos" min="1" placeholder="${esc(t('et.pos'))}">
+        <input type="text" class="et-nr" id="et-nr" placeholder="${esc(t('et.nrPh'))}">
+        <input type="text" class="et-name" id="et-name" placeholder="${esc(t('et.namePh'))}" required>
+        <input type="text" class="et-preis" id="et-preis" placeholder="${esc(t('et.preisPh'))}">
+        <input type="text" class="et-nr" id="et-lieferant" placeholder="${esc(t('et.lieferantPh'))}">
+        <button type="submit" class="btn btn-sm">${t('et.add')}</button>
+        <button type="button" id="et-import-btn" class="btn btn-sm">${t('et.import')}</button>
+        <input type="file" id="et-import" class="hidden" accept=".csv,.json,.xml">
+      </form>
+      <h3 style="margin-top:14px">${t('zg.titel')}</h3>
+      ${zeichnungen}
+      <form id="zg-form" class="dok-form">
+        <input type="text" id="zg-name" placeholder="${esc(t('zg.namePh'))}" maxlength="80">
+        <input type="url" id="zg-url" placeholder="${esc(t('zg.urlPh'))}">
+        <button type="submit" class="btn btn-sm">${t('zg.linkBtn')}</button>
+        <button type="button" id="zg-datei-btn" class="btn btn-sm">${t('zg.dateiBtn')}</button>
+        <input type="file" id="zg-datei" class="hidden" accept="image/*">
+      </form>
+      <h3 style="margin-top:14px">${t('d3.titel')}</h3>
+      <p class="stat-note">${t('d3.hinweis')}</p>
+      ${modelle}
+      <form id="d3-form" class="dok-form">
+        <input type="text" id="d3-name" placeholder="${esc(t('d3.namePh'))}" maxlength="80">
+        <input type="url" id="d3-url" placeholder="${esc(t('d3.urlPh'))}">
+        <button type="submit" class="btn btn-sm">${t('zg.linkBtn')}</button>
+      </form>
+    </div>`;
+}
+
+/* --- Zeichnungs-Viewer mit Positionsmarkern --- */
+
+let zgAktiv = null; // { geraet, zeichnung }
+
+function renderZgMarker() {
+  const { geraet, zeichnung } = zgAktiv;
+  $('#zg-markerlayer').innerHTML = (zeichnung.marker || []).map((m, i) => {
+    const teil = (geraet.ersatzteile || []).find((e) => e.id === m.teilId);
+    return `<div class="zg-marker" style="left:${m.x}%;top:${m.y}%" data-i="${i}" title="${esc(teil ? teil.name : '?')}">${teil?.pos ?? i + 1}</div>`;
+  }).join('');
+  $$('#zg-markerlayer .zg-marker').forEach((el) => el.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    const m = zgAktiv.zeichnung.marker[Number(el.dataset.i)];
+    const teil = (zgAktiv.geraet.ersatzteile || []).find((e) => e.id === m.teilId);
+    if (teil) {
+      $('#zg-info').textContent = t('zg.markerInfo', {
+        pos: teil.pos || '–', artikelNr: teil.artikelNr || '–', name: teil.name,
+        preis: teil.preis !== null && teil.preis !== undefined ? geld(teil.preis) : '–',
+      });
+    }
+  }));
+}
+
+function oeffneZeichnung(g, z) {
+  zgAktiv = { geraet: g, zeichnung: z };
+  $('#zg-titel').textContent = z.name;
+  $('#zg-bild').src = z.url;
+  $('#zg-info').textContent = '';
+  $('#zg-teil').innerHTML = (g.ersatzteile || [])
+    .map((e) => `<option value="${esc(e.id)}">${e.pos || '–'} · ${esc(e.name)}</option>`).join('');
+  renderZgMarker();
+  $('#modal-zeichnung').classList.remove('hidden');
+}
+
 /* ===================== Belegung / Reservierung ===================== */
 
 /** Kommende + laufende Belegungen eines Geräts, chronologisch. */
@@ -1364,6 +1651,20 @@ function initEvents() {
     $('#pruef-editor').insertAdjacentHTML('beforeend', pruefEditorZeile(null));
     const row = $('#pruef-editor').lastElementChild;
     row.querySelector('.pe-del').addEventListener('click', () => row.remove());
+  });
+
+  // Zeichnungs-Viewer: Admin platziert Marker per Klick aufs Bild
+  $('#zg-bildwrap').addEventListener('click', (ev) => {
+    if (!zgAktiv || !istAdmin()) return;
+    const teilId = $('#zg-teil').value;
+    if (!teilId) return;
+    const box = $('#zg-bildwrap').getBoundingClientRect();
+    const x = Math.round(((ev.clientX - box.left) / box.width) * 1000) / 10;
+    const y = Math.round(((ev.clientY - box.top) / box.height) * 1000) / 10;
+    zgAktiv.zeichnung.marker = zgAktiv.zeichnung.marker || [];
+    zgAktiv.zeichnung.marker.push({ teilId, x, y });
+    speichereDaten(daten);
+    renderZgMarker();
   });
 
   // Modals

@@ -331,6 +331,28 @@ const TOOLS = [
     },
   },
   {
+    name: 'ersatzteile_suchen',
+    description: 'Ersatzteilkatalog durchsuchen (optional je Gerät): Positionen, Artikelnummern, Bezeichnungen, Preise (CHF) und Lieferanten – z. B. um eine Bestellung oder Serviceanfrage vorzubereiten.',
+    inputSchema: { type: 'object', properties: {
+      geraetId: { type: 'number', description: 'nur Teile dieses Geräts' },
+      suche: { type: 'string', description: 'Freitext (Artikel-Nr./Bezeichnung)' },
+    } },
+    async ausfuehren(args, { daten }) {
+      const s = (args.suche || '').toLowerCase();
+      const treffer = [];
+      for (const g of daten.devices) {
+        if (args.geraetId && g.id !== args.geraetId) continue;
+        for (const e of g.ersatzteile || []) {
+          if (s && ![e.name, e.artikelNr].some((f) => (f || '').toLowerCase().includes(s))) continue;
+          treffer.push(`#${g.id} ${g.name} · Pos. ${e.pos || '–'} · ${e.artikelNr || '–'} · ${e.name}`
+            + ` · ${e.preis !== null && e.preis !== undefined ? 'CHF ' + e.preis.toFixed(2) : 'Preis unbekannt'}`
+            + (e.lieferant ? ` · ${e.lieferant}` : ''));
+        }
+      }
+      return treffer.length ? `${treffer.length} Ersatzteil(e):\n` + treffer.join('\n') : 'Keine Ersatzteile gefunden.';
+    },
+  },
+  {
     name: 'uebersetzungen_fehlen',
     description: 'Listet Freitext-Verlaufseinträge ohne gespeicherte Übersetzung in der Zielsprache. Für die einmalige, dauerhaft gespeicherte Übersetzung: Einträge übersetzen und mit uebersetzung_speichern sichern. Das Original bleibt immer erhalten.',
     inputSchema: { type: 'object', properties: {
