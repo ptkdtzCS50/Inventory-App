@@ -32,8 +32,8 @@ const LIZENZ_SCHLUESSEL = 'eyJrdW5kZSI6IkF2aWRpYSBQaGFybWEgKFBpbG90KSIsImVkaXRpb
  * ------------------------------------------------------------------- */
 const DATEN_VERSCHLUESSELN = false;
 
-const SUPABASE_URL = '';      // z. B. 'https://abcdefgh.supabase.co'
-const SUPABASE_ANON_KEY = ''; // der öffentliche "anon"-Key des Projekts
+const SUPABASE_URL = 'https://yfkywdtelkjxydcrlyjj.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_jx5qR-EqvWtH9_EpZsIxZw_T7WO7dVD'; // öffentlicher Client-Key
 
 /* ---------------------------------------------------------------------
  * Master-Passwort (Zugangsschutz vor dem Login)
