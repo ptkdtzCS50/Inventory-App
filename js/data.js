@@ -196,6 +196,59 @@ function migriereDaten(daten) {
   // Eigene (vom Admin definierte) Felder
   if (!daten.customFields) daten.customFields = [];
   if (!daten.nextFieldId) daten.nextFieldId = 1;
+
+  // Mitarbeiter- & Teamverwaltung (M1/M2): beim ersten Lauf aus den
+  // vorhandenen Gerätedaten ableiten (Verantwortliche + Team-Namen)
+  if (!daten.teams) {
+    daten.teams = [];
+    const bekannt = new Set();
+    for (const g of daten.devices) {
+      if (!g.team || bekannt.has(g.team.toLowerCase())) continue;
+      bekannt.add(g.team.toLowerCase());
+      daten.teams.push({ id: neueId(), name: g.team, standort: g.location || '' });
+    }
+  }
+  if (!daten.mitarbeiter) {
+    daten.mitarbeiter = [];
+    const bekannt = new Map();
+    for (const g of daten.devices) {
+      if (!g.responsible) continue;
+      const key = g.responsible.toLowerCase();
+      if (!bekannt.has(key)) {
+        const m = {
+          id: neueId(), name: g.responsible, kuerzel: g.responsibleKuerzel || '',
+          standort: g.location || '', teams: g.team ? [g.team] : [],
+          funktion: '', telefon: '', email: '', aktiv: true,
+        };
+        bekannt.set(key, m);
+        daten.mitarbeiter.push(m);
+      } else if (g.team && !bekannt.get(key).teams.includes(g.team)) {
+        bekannt.get(key).teams.push(g.team);
+      }
+    }
+  }
+  if (!daten.einsaetze) daten.einsaetze = []; // Einsatzplan (M4)
+  if (!daten.ideen) daten.ideen = []; // Ideen-Briefkasten (💡)
+}
+
+/** Aktive Mitarbeiter eines Standorts ('' = alle Standorte). */
+function mitarbeiterAmStandort(daten, standort) {
+  return (daten.mitarbeiter || []).filter((m) => m.aktiv && (!standort || m.standort === standort));
+}
+
+/** Demo-Einsätze für die laufende Woche (nur bei frischer Demo-Installation). */
+function erzeugeDemoEinsaetze(daten) {
+  const m = (name) => (daten.mitarbeiter || []).find((x) => x.name === name);
+  const tag = (offset) => { const d = heute(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7) + offset); return isoDatum(d); };
+  const eintrag = (name, offset, von, bis, aufgabe, geraetId) => {
+    const mit = m(name);
+    if (mit) daten.einsaetze.push({ id: neueId(), mitarbeiterId: mit.id, datum: tag(offset), von, bis, aufgabe, geraetId: geraetId || null });
+  };
+  eintrag('K. Hoffmann', 0, '07:30', '12:00', 'H&E-Färbelauf Routine', 2);
+  eintrag('K. Hoffmann', 2, '08:00', '16:00', 'Zytologie-Präparation', 9);
+  eintrag('M. Schneider', 1, '07:00', '15:00', 'Zuschnitt & Schnellschnitt-Dienst', 6);
+  eintrag('S. Albrecht', 3, '09:00', '13:00', 'IHC-Läufe Panel 2', 5);
+  eintrag('M. Weber', 4, '08:30', '12:30', 'PCR-Läufe Molekularpathologie', 10);
 }
 
 function ladeDaten() {
@@ -211,6 +264,7 @@ function ladeDaten() {
   } catch (e) { /* beschädigte Daten -> neu initialisieren */ }
   const daten = { devices: erzeugeDemoDaten(), nextId: 100, customFields: [], nextFieldId: 1 };
   migriereDaten(daten);
+  erzeugeDemoEinsaetze(daten); // Beispiel-Einsatzplan nur bei frischer Demo
   localStorage.setItem(STORAGE_KEY, JSON.stringify(daten));
   return daten;
 }

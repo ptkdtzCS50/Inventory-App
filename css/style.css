@@ -207,8 +207,9 @@ tbody tr:last-child td { border-bottom: none; }
 .modal-foot { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .form-grid label { display: flex; flex-direction: column; font-size: 13px; font-weight: 600; gap: 4px; }
-.form-grid input {
+.form-grid input, .form-grid select {
   padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; font-weight: 400;
+  background: var(--card); color: var(--text);
 }
 
 /* ===== Detailansicht ===== */
@@ -461,6 +462,59 @@ tbody tr:last-child td { border-bottom: none; }
 .kk-tools input[type="search"] {
   flex: 1; min-width: 140px; padding: 7px 9px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px;
 }
+
+/* ===== Mitarbeiter & Teams (M1/M2) ===== */
+.ma-note { flex: 1; }
+.ma-inaktiv td { opacity: .55; }
+.ma-chip-inaktiv {
+  background: var(--grey-bg); color: var(--grey); font-size: 12px; font-weight: 600;
+  padding: 2px 8px; border-radius: 999px;
+}
+.ma-aktiv-zeile { display: flex; align-items: center; gap: 8px; font-size: 14px; margin: 12px 0 4px; }
+.team-block { margin-top: 16px; }
+
+/* ===== Einsatzplan (M4) ===== */
+.ep-woche { min-width: 190px; text-align: center; font-size: 14px; }
+.ep-tabelle th, .ep-tabelle td { min-width: 110px; vertical-align: top; }
+.ep-tabelle td:first-child, .ep-tabelle th:first-child { min-width: 160px; }
+.ep-tabelle .ep-heute { background: var(--accent-bg); }
+.ep-eintrag {
+  position: relative; background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+  padding: 6px 8px; margin-bottom: 6px; font-size: 12px;
+}
+.ep-eintrag .ep-zeit { color: var(--muted); display: block; }
+.ep-eintrag .ep-del {
+  position: absolute; top: 4px; right: 4px; border: none; background: transparent;
+  color: var(--muted); cursor: pointer; font-size: 11px; padding: 0 2px;
+}
+.ep-eintrag .ep-del:hover { color: var(--red); }
+.ep-add {
+  border: 1px dashed var(--border); background: transparent; color: var(--muted);
+  border-radius: 8px; width: 100%; padding: 2px 0; cursor: pointer; font-size: 13px;
+}
+.ep-add:hover { color: var(--blue); border-color: var(--blue); }
+.ep-aufgabe-feld { grid-column: 1 / -1; }
+@media print {
+  .ep-add, .ep-del { display: none !important; }
+  .ep-tabelle th, .ep-tabelle td { min-width: 0; }
+}
+
+/* ===== Ideen-Briefkasten (💡) ===== */
+#idee-text {
+  width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px;
+  font: inherit; font-size: 14px; resize: vertical;
+}
+.idee-senden-zeile { margin: 8px 0 16px; text-align: right; }
+#modal-idee h3 { font-size: 15px; margin: 4px 0 8px; }
+.idee-eintrag { border-top: 1px solid var(--border); padding: 10px 2px; font-size: 14px; }
+.idee-status {
+  background: var(--yellow-bg); color: var(--yellow); font-size: 11px; font-weight: 600;
+  padding: 1px 8px; border-radius: 999px;
+}
+.idee-status.idee-fertig { background: var(--green-bg); color: var(--green); }
+.idee-prompt { margin-top: 6px; }
+.idee-prompt summary { cursor: pointer; font-size: 13px; color: var(--blue); }
+.idee-prompt textarea { margin-top: 6px; }
 
 /* ===== QR-Filter-Hinweisleiste ===== */
 .qr-filter {

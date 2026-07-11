@@ -455,6 +455,37 @@ const TOOLS = [
     },
   },
   {
+    name: 'ideen_lesen',
+    description: 'Ideen-Briefkasten lesen: Verbesserungsideen, die Anwender über den 💡-Knopf der App eingereicht haben. Typischer Ablauf: neue Ideen lesen, zu einem strukturierten Prompt verbessern und mit idee_prompt_speichern zurückschreiben. nur_neue=true zeigt nur unbearbeitete Ideen.',
+    inputSchema: { type: 'object', properties: { nur_neue: { type: 'boolean' } } },
+    async ausfuehren(args, { daten }) {
+      let liste = daten.ideen || [];
+      if (args.nur_neue) liste = liste.filter((i) => i.status === 'neu');
+      if (!liste.length) return args.nur_neue ? 'Keine neuen Ideen im Briefkasten.' : 'Der Ideen-Briefkasten ist leer.';
+      return `${liste.length} Idee(n):\n` + liste.map((i) =>
+        `[${i.id}] ${new Date(i.ts).toISOString().slice(0, 10)} · ${i.von}: ${i.text}`
+        + (i.status === 'verbessert' ? '\n  → verbesserter Prompt liegt bereits vor' : '')).join('\n');
+    },
+  },
+  {
+    name: 'idee_prompt_speichern',
+    description: 'Zu einer Idee aus dem Briefkasten den verbesserten, strukturierten Prompt speichern. Die Idee gilt danach als bearbeitet; der Prompt ist für alle Anwender im 💡-Briefkasten der App sichtbar.',
+    inputSchema: { type: 'object', properties: {
+      id: { type: 'string', description: 'ID der Idee (aus ideen_lesen)' },
+      prompt: { type: 'string', description: 'Der vollständige verbesserte Prompt' },
+    }, required: ['id', 'prompt'] },
+    schreibt: true,
+    async ausfuehren(args, ctx) {
+      const idee = (ctx.daten.ideen || []).find((i) => i.id === args.id);
+      if (!idee) return `Idee ${args.id} nicht gefunden.`;
+      idee.prompt = args.prompt;
+      idee.status = 'verbessert';
+      idee.bearbeitet = Date.now();
+      ctx.geaendert = true;
+      return `Verbesserter Prompt zur Idee von ${idee.von} gespeichert – in der App unter 💡 sichtbar.`;
+    },
+  },
+  {
     name: 'statistik',
     description: 'Ausfallstatistik: Defekte, Ausfalltage und Reparaturkosten (CHF) pro Hersteller und pro Standort, normalisiert pro Gerät.',
     inputSchema: { type: 'object', properties: {} },

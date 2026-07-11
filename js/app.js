@@ -20,6 +20,7 @@ const zustand = {
   sortKey: 'status', sortDir: 1,
   offenesGeraet: null, // Geräte-ID im Detail-Modal
   qrGeraet: null, // per QR-Code gescanntes Gerät: Liste zeigt nur dieses (null = aus)
+  einsatzWoche: 0, // Wochen-Offset des Einsatzplans (0 = laufende Woche)
 };
 
 const $ = (sel) => document.querySelector(sel);
@@ -974,6 +975,24 @@ function sammleKontakte() {
   })).filter((k) => k.name || k.telefon || k.email);
 }
 
+/**
+ * M3: Vorschlagslisten für Zuständigkeit und Team an den im Formular
+ * gewählten Standort binden – zur Auswahl stehen die Mitarbeitenden,
+ * die an diesem Standort arbeiten (Freitext bleibt möglich).
+ */
+function fuelleZustaendigkeitsListen() {
+  const standort = $('#f-location').value.trim();
+  let leute = mitarbeiterAmStandort(daten, standort);
+  if (!leute.length) leute = mitarbeiterAmStandort(daten, ''); // Standort unbekannt -> alle anbieten
+  $('#dl-responsible').innerHTML = leute.map((m) => `<option value="${esc(m.name)}">`).join('');
+  const teamNamen = new Set([
+    ...(daten.teams || []).filter((tm) => !standort || !tm.standort || tm.standort === standort).map((tm) => tm.name),
+    ...aktiveGeraete().filter((g) => !standort || g.location === standort).map((g) => g.team).filter(Boolean),
+  ]);
+  $('#dl-team').innerHTML = [...teamNamen].sort((a, b) => a.localeCompare(b, 'de'))
+    .map((w) => `<option value="${esc(w)}">`).join('');
+}
+
 function oeffneFormular(g) {
   $('#form-title').textContent = g ? t('form.titelBearbeiten') : t('form.titelNeu');
   $('#f-id').value = g ? g.id : '';
@@ -998,6 +1017,7 @@ function oeffneFormular(g) {
   // Eigene Felder dynamisch einfügen
   $('#custom-fields-form').innerHTML = daten.customFields.map((f) => `
     <label>${esc(f.label)}<input type="${f.type}" data-field="${esc(f.id)}" value="${esc((g?.custom || {})[f.id] || '')}"></label>`).join('');
+  fuelleZustaendigkeitsListen();
   $('#modal-form').classList.remove('hidden');
 }
 
@@ -1602,6 +1622,300 @@ function renderArchiv() {
   });
 }
 
+/* ===================== Mitarbeiter & Teams (M1/M2) ===================== */
+
+function findeMitarbeiter(id) { return (daten.mitarbeiter || []).find((m) => m.id === id); }
+
+function renderMitarbeiter() {
+  const liste = [...(daten.mitarbeiter || [])].sort((a, b) => a.name.localeCompare(b.name, 'de'));
+  $('#ma-leer').classList.toggle('hidden', liste.length > 0);
+  $('#ma-tbody').innerHTML = liste.map((m) => `
+    <tr data-id="${esc(m.id)}" class="${m.aktiv ? '' : 'ma-inaktiv'}">
+      <td><span class="device-name">${esc(m.name)}</span>${m.kuerzel ? ` <span class="role-chip">${esc(m.kuerzel)}</span>` : ''}</td>
+      <td>${esc(m.standort || '–')}</td>
+      <td>${(m.teams || []).map(esc).join(', ') || '–'}</td>
+      <td>${esc(m.funktion || '–')}</td>
+      <td>${[m.telefon && esc(m.telefon), m.email && `<a href="mailto:${esc(m.email)}">${esc(m.email)}</a>`].filter(Boolean).join(' · ') || '–'}</td>
+      <td>${m.aktiv ? t('ma.aktiv') : `<span class="ma-chip-inaktiv">${t('ma.inaktiv')}</span>`}</td>
+      <td>${istAdmin() ? `
+        <button class="btn btn-sm ma-edit">${t('aktion.bearbeiten')}</button>
+        <button class="btn btn-sm ma-toggle">${m.aktiv ? t('ma.deaktivieren') : t('ma.aktivieren')}</button>
+        <button class="btn btn-sm btn-danger ma-del">✕</button>` : ''}
+      </td>
+    </tr>`).join('');
+  $$('#ma-tbody tr[data-id]').forEach((tr) => {
+    const m = findeMitarbeiter(tr.dataset.id);
+    const edit = tr.querySelector('.ma-edit');
+    if (edit) edit.addEventListener('click', () => oeffneMitarbeiterFormular(m));
+    const toggle = tr.querySelector('.ma-toggle');
+    if (toggle) toggle.addEventListener('click', () => {
+      m.aktiv = !m.aktiv;
+      speichereDaten(daten);
+      renderMitarbeiter();
+    });
+    const del = tr.querySelector('.ma-del');
+    if (del) del.addEventListener('click', () => {
+      if (!confirm(t('ma.loeschenFrage', { name: m.name }))) return;
+      daten.mitarbeiter = daten.mitarbeiter.filter((x) => x.id !== m.id);
+      daten.einsaetze = (daten.einsaetze || []).filter((e) => e.mitarbeiterId !== m.id);
+      speichereDaten(daten);
+      renderMitarbeiter();
+    });
+  });
+
+  // Teams
+  const teams = [...(daten.teams || [])].sort((a, b) => a.name.localeCompare(b.name, 'de'));
+  $('#team-liste').innerHTML = teams.map((tm) => {
+    const mitglieder = (daten.mitarbeiter || []).filter((m) => m.aktiv && (m.teams || []).includes(tm.name)).length;
+    const geraete = aktiveGeraete().filter((g) => g.team === tm.name).length;
+    return `<div class="field-row" data-id="${esc(tm.id)}">
+      <span class="field-label">${esc(tm.name)}</span>
+      <span class="field-type">${esc(tm.standort || '–')} · ${t('team.mitglieder', { n: mitglieder })} · ${t('team.geraete', { n: geraete })}</span>
+      ${istAdmin() ? `<button class="btn btn-sm team-edit">${t('aktion.bearbeiten')}</button>
+      <button class="btn btn-sm btn-danger team-del">✕</button>` : ''}
+    </div>`;
+  }).join('') || `<p class="empty-hint">${t('team.keine')}</p>`;
+  $$('#team-liste .field-row').forEach((row) => {
+    const tm = (daten.teams || []).find((x) => x.id === row.dataset.id);
+    const edit = row.querySelector('.team-edit');
+    if (edit) edit.addEventListener('click', () => oeffneTeamFormular(tm));
+    const del = row.querySelector('.team-del');
+    if (del) del.addEventListener('click', () => {
+      if (!confirm(t('team.loeschenFrage', { name: tm.name }))) return;
+      daten.teams = daten.teams.filter((x) => x.id !== tm.id);
+      for (const m of daten.mitarbeiter || []) m.teams = (m.teams || []).filter((n) => n !== tm.name);
+      speichereDaten(daten);
+      renderMitarbeiter();
+    });
+  });
+
+  $$('#view-mitarbeiter .admin-only').forEach((el) => el.classList.toggle('hidden', !istAdmin()));
+}
+
+function oeffneMitarbeiterFormular(m) {
+  $('#ma-form-titel').textContent = m ? t('ma.formTitelBearbeiten') : t('ma.formTitelNeu');
+  $('#ma-id').value = m ? m.id : '';
+  $('#ma-name').value = m?.name || '';
+  $('#ma-kuerzel').value = m?.kuerzel || '';
+  $('#ma-standort').value = m?.standort || '';
+  $('#ma-funktion').value = m?.funktion || '';
+  $('#ma-telefon').value = m?.telefon || '';
+  $('#ma-email').value = m?.email || '';
+  $('#ma-aktiv').checked = m ? !!m.aktiv : true;
+  const teams = [...(daten.teams || [])].sort((a, b) => a.name.localeCompare(b.name, 'de'));
+  $('#ma-teams').innerHTML = teams.length
+    ? teams.map((tm) => `<label class="kk-row"><input type="checkbox" value="${esc(tm.name)}" ${(m?.teams || []).includes(tm.name) ? 'checked' : ''}>
+        <span>${esc(tm.name)} <small>· ${esc(tm.standort || '–')}</small></span></label>`).join('')
+    : `<small>${t('team.keine')}</small>`;
+  $('#modal-ma').classList.remove('hidden');
+  $('#ma-name').focus();
+}
+
+function speichereMitarbeiter(ev) {
+  ev.preventDefault();
+  const id = $('#ma-id').value;
+  const werte = {
+    name: $('#ma-name').value.trim(),
+    kuerzel: $('#ma-kuerzel').value.trim().toUpperCase(),
+    standort: $('#ma-standort').value.trim(),
+    funktion: $('#ma-funktion').value.trim(),
+    telefon: $('#ma-telefon').value.trim(),
+    email: $('#ma-email').value.trim(),
+    aktiv: $('#ma-aktiv').checked,
+    teams: $$('#ma-teams input:checked').map((el) => el.value),
+  };
+  if (!werte.name) return;
+  if (id) Object.assign(findeMitarbeiter(id), werte);
+  else daten.mitarbeiter.push({ id: neueId(), ...werte });
+  speichereDaten(daten);
+  $('#modal-ma').classList.add('hidden');
+  renderMitarbeiter();
+}
+
+function oeffneTeamFormular(tm) {
+  $('#team-form-titel').textContent = tm ? t('team.formTitelBearbeiten') : t('team.formTitelNeu');
+  $('#team-id').value = tm ? tm.id : '';
+  $('#team-name').value = tm?.name || '';
+  $('#team-standort').value = tm?.standort || '';
+  $('#modal-team').classList.remove('hidden');
+  $('#team-name').focus();
+}
+
+function speichereTeam(ev) {
+  ev.preventDefault();
+  const id = $('#team-id').value;
+  const name = $('#team-name').value.trim();
+  const standort = $('#team-standort').value.trim();
+  if (!name) return;
+  if (id) {
+    const tm = daten.teams.find((x) => x.id === id);
+    // Umbenennung auf Mitarbeiter und Geräte durchreichen
+    if (tm.name !== name) {
+      for (const m of daten.mitarbeiter || []) m.teams = (m.teams || []).map((n) => (n === tm.name ? name : n));
+      for (const g of daten.devices) if (g.team === tm.name) g.team = name;
+    }
+    Object.assign(tm, { name, standort });
+  } else {
+    daten.teams.push({ id: neueId(), name, standort });
+  }
+  speichereDaten(daten);
+  $('#modal-team').classList.add('hidden');
+  renderMitarbeiter();
+}
+
+/* ===================== Einsatzplan (M4) ===================== */
+
+/** Montag der Woche mit Offset (0 = laufende Woche). */
+function wochenStart(offset = 0) {
+  const d = heute();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7) + offset * 7);
+  return d;
+}
+
+function fuelleEinsatzFilter() {
+  const standorte = new Set([
+    ...aktiveGeraete().map((g) => g.location),
+    ...(daten.mitarbeiter || []).map((m) => m.standort).filter(Boolean),
+  ]);
+  const setze = (sel, werte, ersteKey) => {
+    const el = $(sel);
+    const wert = el.value;
+    el.innerHTML = `<option value="">${t(ersteKey)}</option>` + [...werte].sort((a, b) => a.localeCompare(b, 'de'))
+      .map((w) => `<option value="${esc(w)}">${esc(w)}</option>`).join('');
+    el.value = wert;
+  };
+  setze('#ep-standort', standorte, 'filter.alleStandorte');
+  setze('#ep-team', new Set((daten.teams || []).map((tm) => tm.name)), 'ep.alleTeams');
+}
+
+function renderEinsatzplan() {
+  fuelleEinsatzFilter();
+  const start = wochenStart(zustand.einsatzWoche);
+  const tage = [...Array(7)].map((_, i) => { const d = new Date(start); d.setDate(d.getDate() + i); return isoDatum(d); });
+  $('#ep-woche').textContent = `${formatDatum(tage[0])} – ${formatDatum(tage[6])}`;
+
+  const standort = $('#ep-standort').value;
+  const team = $('#ep-team').value;
+  let leute = (daten.mitarbeiter || []).filter((m) => m.aktiv);
+  if (standort) leute = leute.filter((m) => m.standort === standort);
+  if (team) leute = leute.filter((m) => (m.teams || []).includes(team));
+  leute.sort((a, b) => a.name.localeCompare(b.name, 'de'));
+
+  const heuteIso = isoDatum(heute());
+  const kopf = `<tr><th>${t('ep.mitarbeiter')}</th>` + tage.map((iso, i) =>
+    `<th class="${iso === heuteIso ? 'ep-heute' : ''}">${tArr('wochentage')[(i + 1) % 7]}<br><small>${formatDatum(iso)}</small></th>`).join('') + '</tr>';
+
+  const zeilen = leute.map((m) => {
+    const zellen = tage.map((iso) => {
+      const eintraege = (daten.einsaetze || [])
+        .filter((e) => e.mitarbeiterId === m.id && e.datum === iso)
+        .sort((a, b) => (a.von || '').localeCompare(b.von || ''));
+      const inhalte = eintraege.map((e) => {
+        const g = e.geraetId ? findeGeraet(e.geraetId) : null;
+        return `<div class="ep-eintrag" data-id="${esc(e.id)}">
+          <span class="ep-zeit">${esc(e.von || '')}–${esc(e.bis || '')}</span>${istAdmin() ? `<button type="button" class="ep-del" title="${esc(t('aktion.loeschen'))}">✕</button>` : ''}
+          <strong>${esc(e.aufgabe)}</strong>${g ? `<br><small>${esc(g.name)}</small>` : ''}
+        </div>`;
+      }).join('');
+      return `<td class="${iso === heuteIso ? 'ep-heute' : ''}">${inhalte}${istAdmin() ? `<button type="button" class="ep-add" data-ma="${esc(m.id)}" data-datum="${iso}">+</button>` : ''}</td>`;
+    }).join('');
+    return `<tr><td><span class="device-name">${esc(m.name)}</span><br><span class="device-sub">${esc(m.kuerzel || '')}${m.standort ? ' · ' + esc(m.standort) : ''}</span></td>${zellen}</tr>`;
+  }).join('');
+
+  $('#ep-tabelle').innerHTML = `<thead>${kopf}</thead><tbody>${zeilen}</tbody>`;
+  $('#ep-leer').classList.toggle('hidden', leute.length > 0);
+
+  $$('#ep-tabelle .ep-add').forEach((btn) => btn.addEventListener('click', () =>
+    oeffneEinsatzFormular(btn.dataset.ma, btn.dataset.datum)));
+  $$('#ep-tabelle .ep-del').forEach((btn) => btn.addEventListener('click', () => {
+    if (!confirm(t('ep.loeschenFrage'))) return;
+    const id = btn.closest('.ep-eintrag').dataset.id;
+    daten.einsaetze = daten.einsaetze.filter((e) => e.id !== id);
+    speichereDaten(daten);
+    renderEinsatzplan();
+  }));
+}
+
+function oeffneEinsatzFormular(mitarbeiterId, datum) {
+  const leute = (daten.mitarbeiter || []).filter((m) => m.aktiv).sort((a, b) => a.name.localeCompare(b.name, 'de'));
+  $('#ep-ma').innerHTML = leute.map((m) => `<option value="${esc(m.id)}">${esc(m.name)}${m.kuerzel ? ' (' + esc(m.kuerzel) + ')' : ''}</option>`).join('');
+  if (mitarbeiterId) $('#ep-ma').value = mitarbeiterId;
+  $('#ep-datum').value = datum || isoDatum(heute());
+  $('#ep-von').value = '08:00';
+  $('#ep-bis').value = '16:00';
+  $('#ep-aufgabe').value = '';
+  fuelleEinsatzGeraete();
+  $('#modal-einsatz').classList.remove('hidden');
+  $('#ep-aufgabe').focus();
+}
+
+/** Geräteauswahl im Einsatz-Dialog: Geräte am Standort der gewählten Person zuerst. */
+function fuelleEinsatzGeraete() {
+  const m = findeMitarbeiter($('#ep-ma').value);
+  const geraete = [...aktiveGeraete()].sort((a, b) =>
+    ((b.location === m?.standort) - (a.location === m?.standort)) || a.name.localeCompare(b.name, 'de'));
+  $('#ep-geraet').innerHTML = `<option value="">${t('ep.keinGeraet')}</option>`
+    + geraete.map((g) => `<option value="${g.id}">${esc(g.name)} · ${esc(g.location)}</option>`).join('');
+}
+
+/**
+ * Einsätze der angezeigten Woche (inkl. Filter) als ICS exportieren –
+ * in Outlook/Teams importierbar. Automatischer Einladungs-VERSAND
+ * (Exchange/Graph, MS Planner) folgt als Backend-Ausbaustufe, siehe Roadmap.
+ */
+function exportiereEinsatzICS() {
+  const start = wochenStart(zustand.einsatzWoche);
+  const tage = [...Array(7)].map((_, i) => { const d = new Date(start); d.setDate(d.getDate() + i); return isoDatum(d); });
+  const standort = $('#ep-standort').value;
+  const team = $('#ep-team').value;
+  const passt = (m) => m && m.aktiv && (!standort || m.standort === standort) && (!team || (m.teams || []).includes(team));
+  const eintraege = (daten.einsaetze || []).filter((e) => tage.includes(e.datum) && passt(findeMitarbeiter(e.mitarbeiterId)));
+  if (!eintraege.length) { alert(t('ep.keineEinsaetze')); return; }
+  const zeilen = [
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Dietz-Engineering//Geraetefuhrpark//DE',
+    'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
+  ];
+  for (const e of eintraege) {
+    const m = findeMitarbeiter(e.mitarbeiterId);
+    const g = e.geraetId ? findeGeraet(e.geraetId) : null;
+    const d = e.datum.replace(/-/g, '');
+    const zeit = (hm, fallback) => (hm || fallback).replace(':', '') + '00';
+    zeilen.push(
+      'BEGIN:VEVENT',
+      `UID:einsatz-${e.id}@geraetefuhrpark`,
+      `DTSTART:${d}T${zeit(e.von, '08:00')}`,
+      `DTEND:${d}T${zeit(e.bis, '16:00')}`,
+      `SUMMARY:${icsText(`${e.aufgabe} – ${m.name}`)}`,
+      `DESCRIPTION:${icsText(`${t('ep.mitarbeiter')}: ${m.name}${m.kuerzel ? ' (' + m.kuerzel + ')' : ''}${g ? ' · ' + t('ep.geraetLabel') + ': ' + g.name : ''}`)}`,
+      `LOCATION:${icsText(g ? `${g.location}${g.room ? ', ' + t('zelle.raum') + ' ' + g.room : ''}` : (m.standort || ''))}`,
+      'END:VEVENT');
+  }
+  zeilen.push('END:VCALENDAR');
+  const blob = new Blob([zeilen.join('\r\n')], { type: 'text/calendar;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'einsatzplan-geraetefuhrpark.ics';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function speichereEinsatz(ev) {
+  ev.preventDefault();
+  const aufgabe = $('#ep-aufgabe').value.trim();
+  const mitarbeiterId = $('#ep-ma').value;
+  const datum = $('#ep-datum').value;
+  if (!aufgabe || !mitarbeiterId || !datum) return;
+  daten.einsaetze.push({
+    id: neueId(), mitarbeiterId, datum,
+    von: $('#ep-von').value, bis: $('#ep-bis').value,
+    aufgabe, geraetId: $('#ep-geraet').value ? Number($('#ep-geraet').value) : null,
+  });
+  speichereDaten(daten);
+  $('#modal-einsatz').classList.add('hidden');
+  renderEinsatzplan();
+}
+
 /* ===================== Belegungs-Übersicht (Tab) ===================== */
 
 function renderBelegungsUebersicht() {
@@ -1809,6 +2123,37 @@ async function renderLizenz() {
   if (krypto) krypto.textContent = verschluesselungAktiv() ? t('krypto.aktiv') : '';
 }
 
+/* ===================== Ideen-Briefkasten (💡) ===================== */
+
+function renderIdeenListe() {
+  const liste = [...(daten.ideen || [])].sort((a, b) => b.ts - a.ts);
+  $('#idee-liste').innerHTML = liste.length ? liste.map((i) => `
+    <div class="idee-eintrag">
+      <div class="log-meta"><strong>${esc(i.von)}</strong> · ${formatZeit(i.ts)} ·
+        <span class="idee-status ${i.status === 'verbessert' ? 'idee-fertig' : ''}">${i.status === 'verbessert' ? t('idee.statusVerbessert') : t('idee.statusNeu')}</span></div>
+      <div>${esc(i.text)}</div>
+      ${i.prompt ? `<details class="idee-prompt"><summary>${t('idee.promptZeigen')}</summary><textarea readonly rows="7" class="claude-prompt">${esc(i.prompt)}</textarea></details>` : ''}
+    </div>`).join('') : `<p class="empty-hint">${t('idee.keine')}</p>`;
+}
+
+function initIdeen() {
+  $('#btn-idee').addEventListener('click', () => {
+    renderIdeenListe();
+    $('#modal-idee').classList.remove('hidden');
+    $('#idee-text').focus();
+  });
+  $('#idee-form').addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    const text = $('#idee-text').value.trim();
+    if (!text) return;
+    daten.ideen = daten.ideen || [];
+    daten.ideen.push({ id: neueId(), ts: Date.now(), von: nutzer ? nutzer.name : '?', text, status: 'neu' });
+    speichereDaten(daten);
+    $('#idee-text').value = '';
+    renderIdeenListe();
+  });
+}
+
 /* ===================== Claude-KI: Connector-Anleitung & Start-Prompt ===================== */
 
 /** true, wenn ein MCP-Server konfiguriert ist (js/config.js). */
@@ -1877,18 +2222,22 @@ function renderAlles(filterNeu = true) {
   if (!$('#view-kalender').classList.contains('hidden')) renderKalender();
   if (!$('#view-belegung').classList.contains('hidden')) renderBelegungsUebersicht();
   if (!$('#view-archiv').classList.contains('hidden')) renderArchiv();
+  if (!$('#view-mitarbeiter').classList.contains('hidden')) renderMitarbeiter();
+  if (!$('#view-einsatzplan').classList.contains('hidden')) renderEinsatzplan();
 }
 
 function initEvents() {
   // Tabs
   $$('.tab').forEach((tab) => tab.addEventListener('click', () => {
     $$('.tab').forEach((t) => t.classList.toggle('active', t === tab));
-    ['uebersicht', 'belegung', 'kalender', 'statistik', 'archiv'].forEach((v) =>
+    ['uebersicht', 'belegung', 'kalender', 'statistik', 'mitarbeiter', 'einsatzplan', 'archiv'].forEach((v) =>
       $('#view-' + v).classList.toggle('hidden', tab.dataset.view !== v));
     if (tab.dataset.view === 'statistik') renderStatistik();
     if (tab.dataset.view === 'kalender') renderKalender();
     if (tab.dataset.view === 'belegung') renderBelegungsUebersicht();
     if (tab.dataset.view === 'archiv') renderArchiv();
+    if (tab.dataset.view === 'mitarbeiter') renderMitarbeiter();
+    if (tab.dataset.view === 'einsatzplan') renderEinsatzplan();
   }));
 
   // Filter Übersicht
@@ -1969,6 +2318,29 @@ function initEvents() {
   });
   $('#kk-uebernehmen').addEventListener('click', kopiereKontakte);
 
+  // Mitarbeiter & Teams (M1/M2)
+  $('#btn-ma-neu').addEventListener('click', () => oeffneMitarbeiterFormular(null));
+  $('#btn-team-neu').addEventListener('click', () => oeffneTeamFormular(null));
+  $('#ma-form').addEventListener('submit', speichereMitarbeiter);
+  $('#team-form').addEventListener('submit', speichereTeam);
+
+  // Einsatzplan (M4)
+  $('#ep-prev').addEventListener('click', () => { zustand.einsatzWoche--; renderEinsatzplan(); });
+  $('#ep-next').addEventListener('click', () => { zustand.einsatzWoche++; renderEinsatzplan(); });
+  $('#ep-heute').addEventListener('click', () => { zustand.einsatzWoche = 0; renderEinsatzplan(); });
+  $('#ep-standort').addEventListener('change', renderEinsatzplan);
+  $('#ep-team').addEventListener('change', renderEinsatzplan);
+  $('#einsatz-form').addEventListener('submit', speichereEinsatz);
+  $('#ep-ma').addEventListener('change', fuelleEinsatzGeraete);
+  $('#ep-ics').addEventListener('click', exportiereEinsatzICS);
+
+  // M3: Zuständigkeit & Team im Geräteformular auf den Standort einschränken
+  $('#f-location').addEventListener('input', fuelleZustaendigkeitsListen);
+  $('#f-responsible').addEventListener('input', () => {
+    const m = (daten.mitarbeiter || []).find((x) => x.aktiv && x.name === $('#f-responsible').value.trim());
+    if (m && m.kuerzel) $('#f-responsible-kuerzel').value = m.kuerzel;
+  });
+
   // Zeichnungs-Viewer: Admin platziert Marker per Klick aufs Bild
   $('#zg-bildwrap').addEventListener('click', (ev) => {
     if (!zgAktiv || !istAdmin()) return;
@@ -1988,6 +2360,7 @@ function initEvents() {
   $('#device-form').addEventListener('submit', speichereFormular);
   $('#status-form').addEventListener('submit', speichereStatuswechsel);
   initClaudeHilfe();
+  initIdeen();
   $('#btn-fields').addEventListener('click', () => {
     renderFelderListe();
     $('#modal-fields').classList.remove('hidden');

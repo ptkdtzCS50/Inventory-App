@@ -63,12 +63,15 @@
       <button class="tab" data-view="belegung" data-i18n="tab.belegung">Belegung</button>
       <button class="tab" data-view="kalender" data-i18n="tab.kalender">Kalender</button>
       <button class="tab" data-view="statistik" data-i18n="tab.statistik">Statistik</button>
+      <button class="tab" data-view="mitarbeiter" data-i18n="tab.mitarbeiter">Mitarbeiter</button>
+      <button class="tab" data-view="einsatzplan" data-i18n="tab.einsatzplan">Einsatzplan</button>
       <button class="tab" data-view="archiv" data-i18n="tab.archiv">Archiv</button>
     </nav>
     <div class="header-right">
       <select class="sprach-wahl" title="Sprache / Language">
         <option value="de">DE</option><option value="en">EN</option><option value="fr">FR</option><option value="it">IT</option>
       </select>
+      <button id="btn-idee" class="btn btn-ghost btn-claude" title="Ideen-Briefkasten">💡 <span data-i18n="idee.btn">Idee</span></button>
       <button id="btn-claude" class="btn btn-ghost btn-claude hidden" title="Claude (KI-Assistent)">✨ <span data-i18n="claude.btn">Claude</span></button>
       <div class="notif-wrap">
         <button id="notif-btn" class="notif-btn" title="Benachrichtigungen">🔔<span id="notif-badge" class="notif-badge hidden"></span></button>
@@ -251,6 +254,59 @@
     <section id="kalender-liste"></section>
   </main>
 
+  <!-- ===== Ansicht: Mitarbeiter & Teams ===== -->
+  <main id="view-mitarbeiter" class="view hidden">
+    <section class="toolbar">
+      <p class="stat-note ma-note" data-i18n="ma.note">Mitarbeitende und Teams des Instituts – Grundlage für Zuständigkeiten an den Geräten und den Einsatzplan. Pflege durch Admins.</p>
+      <button id="btn-ma-neu" class="btn btn-primary admin-only" data-i18n="ma.neu">+ Mitarbeiter/in</button>
+    </section>
+    <section class="table-wrap">
+      <table class="device-table">
+        <thead>
+          <tr>
+            <th data-i18n="ma.name">Name</th>
+            <th data-i18n="ma.standort">Standort</th>
+            <th data-i18n="ma.teams">Teams</th>
+            <th data-i18n="ma.funktion">Funktion</th>
+            <th data-i18n="ma.kontakt">Kontakt</th>
+            <th data-i18n="th.status">Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="ma-tbody"></tbody>
+      </table>
+      <p id="ma-leer" class="empty-hint hidden" data-i18n="ma.keine">Noch keine Mitarbeitenden angelegt.</p>
+    </section>
+    <section class="stat-block team-block">
+      <div class="stat-block-head">
+        <h2 data-i18n="team.titel">Teams</h2>
+        <button id="btn-team-neu" class="btn btn-sm admin-only" data-i18n="team.neu">+ Team</button>
+      </div>
+      <div id="team-liste"></div>
+    </section>
+  </main>
+
+  <!-- ===== Ansicht: Einsatzplan ===== -->
+  <main id="view-einsatzplan" class="view hidden">
+    <section class="toolbar">
+      <div class="filters">
+        <button id="ep-prev" class="btn btn-sm" title="Vorherige Woche">◀</button>
+        <strong id="ep-woche" class="ep-woche"></strong>
+        <button id="ep-next" class="btn btn-sm" title="Nächste Woche">▶</button>
+        <button id="ep-heute" class="btn btn-sm" data-i18n="ep.heuteBtn">Heute</button>
+        <select id="ep-standort"><option value="" data-i18n="filter.alleStandorte">Alle Standorte</option></select>
+        <select id="ep-team"><option value="" data-i18n="ep.alleTeams">Alle Teams</option></select>
+      </div>
+      <button id="ep-ics" class="btn" data-i18n="ep.ics">📅 Outlook-Export (ICS)</button>
+      <button class="btn btn-ghost" onclick="window.print()" data-i18n="ep.drucken">🖨 Drucken</button>
+    </section>
+    <p class="stat-note" data-i18n="ep.note">Wocheneinsatzplan der Mitarbeitenden – Einsätze mit Zeit, Aufgabe und optionalem Gerät. Pflege durch Admins (+ in der Tageszelle).</p>
+    <section class="table-wrap">
+      <table class="device-table ep-tabelle" id="ep-tabelle"></table>
+      <p id="ep-leer" class="empty-hint hidden" data-i18n="ep.keineMitarbeiter">Keine Mitarbeitenden für diese Auswahl.</p>
+    </section>
+  </main>
+
   <!-- ===== Ansicht: Archiv ===== -->
   <main id="view-archiv" class="view hidden">
     <p class="stat-note" data-i18n="archiv.note">Außer Betrieb genommene Geräte mit vollständiger Historie – nachvollziehbar statt gelöscht. Wiederherstellen jederzeit möglich (Admin).</p>
@@ -400,6 +456,79 @@
   </div>
 </div>
 
+<!-- ===== Modal: Mitarbeiter/in anlegen/bearbeiten ===== -->
+<div id="modal-ma" class="modal-backdrop hidden">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="ma-form-titel">Mitarbeiter/in</h2>
+      <button class="modal-close" data-close="modal-ma">✕</button>
+    </div>
+    <form id="ma-form" class="modal-body">
+      <input type="hidden" id="ma-id">
+      <div class="form-grid">
+        <label data-i18n="ma.name">Name *<input type="text" id="ma-name" required maxlength="60" data-i18n-ph="ma.namePh" placeholder="z. B. K. Hoffmann"></label>
+        <label data-i18n="ma.kuerzel">Kürzel<input type="text" id="ma-kuerzel" maxlength="5" data-i18n-ph="form.kuerzelPh" placeholder="z. B. KHO"></label>
+        <label data-i18n="ma.standort">Standort<input type="text" id="ma-standort" list="dl-location"></label>
+        <label data-i18n="ma.funktion">Funktion<input type="text" id="ma-funktion" maxlength="60" data-i18n-ph="ma.funktionPh" placeholder="z. B. BTA, Laborleitung"></label>
+        <label data-i18n="ma.telefon">Telefon<input type="tel" id="ma-telefon" maxlength="30"></label>
+        <label data-i18n="ma.email">E-Mail<input type="email" id="ma-email" maxlength="80"></label>
+      </div>
+      <label class="kk-label" data-i18n="ma.teams">Teams</label>
+      <div id="ma-teams" class="kk-liste"></div>
+      <label class="ma-aktiv-zeile"><input type="checkbox" id="ma-aktiv" checked> <span data-i18n="ma.aktivLabel">Aktiv (steht für Zuständigkeiten und Einsatzplan zur Auswahl)</span></label>
+      <div class="modal-foot">
+        <button type="button" class="btn btn-ghost" data-close="modal-ma" data-i18n="form.abbrechen">Abbrechen</button>
+        <button type="submit" class="btn btn-primary" data-i18n="form.speichern">Speichern</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ===== Modal: Team anlegen/bearbeiten ===== -->
+<div id="modal-team" class="modal-backdrop hidden">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="team-form-titel">Team</h2>
+      <button class="modal-close" data-close="modal-team">✕</button>
+    </div>
+    <form id="team-form" class="modal-body">
+      <input type="hidden" id="team-id">
+      <div class="form-grid">
+        <label data-i18n="team.name">Teamname *<input type="text" id="team-name" required maxlength="60"></label>
+        <label data-i18n="ma.standort">Standort<input type="text" id="team-standort" list="dl-location"></label>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn btn-ghost" data-close="modal-team" data-i18n="form.abbrechen">Abbrechen</button>
+        <button type="submit" class="btn btn-primary" data-i18n="form.speichern">Speichern</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ===== Modal: Einsatz anlegen ===== -->
+<div id="modal-einsatz" class="modal-backdrop hidden">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 data-i18n="ep.neu">Einsatz anlegen</h2>
+      <button class="modal-close" data-close="modal-einsatz">✕</button>
+    </div>
+    <form id="einsatz-form" class="modal-body">
+      <div class="form-grid">
+        <label data-i18n="ep.mitarbeiter">Mitarbeiter/in<select id="ep-ma"></select></label>
+        <label data-i18n="ep.datum">Datum<input type="date" id="ep-datum" required></label>
+        <label data-i18n="ep.von">Von<input type="time" id="ep-von"></label>
+        <label data-i18n="ep.bis">Bis<input type="time" id="ep-bis"></label>
+        <label class="ep-aufgabe-feld" data-i18n="ep.aufgabe">Aufgabe *<input type="text" id="ep-aufgabe" required maxlength="120" data-i18n-ph="ep.aufgabePh" placeholder="z. B. H&E-Färbelauf Routine"></label>
+        <label class="ep-aufgabe-feld" data-i18n="ep.geraet">Gerät (optional)<select id="ep-geraet"></select></label>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn btn-ghost" data-close="modal-einsatz" data-i18n="form.abbrechen">Abbrechen</button>
+        <button type="submit" class="btn btn-primary" data-i18n="form.speichern">Speichern</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <!-- ===== Modal: Kontakte auf andere Geräte kopieren ===== -->
 <div id="modal-kontakte" class="modal-backdrop hidden">
   <div class="modal">
@@ -450,6 +579,27 @@
         <button type="submit" class="btn btn-primary" data-i18n="statusdlg.speichern">Status ändern</button>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- ===== Modal: Ideen-Briefkasten ===== -->
+<div id="modal-idee" class="modal-backdrop hidden">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 data-i18n="idee.titel">💡 Ideen-Briefkasten</h2>
+      <button class="modal-close" data-close="modal-idee">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="stat-note" data-i18n="idee.intro">Verbesserungsidee für die App? Einfach hier einwerfen – Claude liest den Briefkasten, formuliert daraus einen strukturierten Umsetzungs-Prompt und legt ihn hier ab.</p>
+      <form id="idee-form">
+        <textarea id="idee-text" required maxlength="2000" rows="4" data-i18n-ph="idee.ph" placeholder="Beschreibe deine Idee – gerne formlos, Stichpunkte reichen."></textarea>
+        <div class="idee-senden-zeile">
+          <button type="submit" class="btn btn-primary" data-i18n="idee.senden">Idee einreichen</button>
+        </div>
+      </form>
+      <h3 data-i18n="idee.listeTitel">Bisherige Ideen</h3>
+      <div id="idee-liste"></div>
+    </div>
   </div>
 </div>
 
