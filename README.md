@@ -297,6 +297,10 @@ und in der Cloud (Supabase sieht dann nur Chiffretext, „Zero-Knowledge").
 - **Wichtig:** Geht das Master-Passwort verloren, sind verschlüsselte
   Daten nicht wiederherstellbar.
 
+Freitext-Verlaufseinträge können über die Claude-Integration **einmalig
+übersetzt und dauerhaft gespeichert** werden (Original bleibt erhalten,
+Anzeige mit „KI-Übersetzung"-Kennzeichnung) – siehe `mcp/README.md`.
+
 In der öffentlichen Demo ist die Verschlüsselung bewusst ausgeschaltet.
 
 ## Copyright

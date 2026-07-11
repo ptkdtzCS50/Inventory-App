@@ -22,6 +22,11 @@ Claude kann dann direkt im Chat:
   Thermo Fisher für Gerät 9")
 - **Statistiken abfragen** („Welcher Hersteller verursacht die meisten
   Kosten pro Gerät?")
+- **Verlaufseinträge einmalig übersetzen und speichern** („Übersetze alle
+  Verlaufseinträge ins Englische und speichere sie") – das Original bleibt
+  unverändert erhalten, die App zeigt die gespeicherte Übersetzung in der
+  jeweiligen Sprache mit „KI-Übersetzung"-Kennzeichnung (Original per
+  Mauszeiger). Einmal übersetzt, keine laufenden Kosten.
 
 Jede Änderung durch Claude wird im Geräteverlauf als Eintrag von
 „Claude (KI-Assistent)" protokolliert — die Historie bleibt lückenlos.

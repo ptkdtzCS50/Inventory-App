@@ -177,6 +177,7 @@ const UEBERSETZUNGEN = {
     'lizenz.abgelaufen': '⚠ Lizenz abgelaufen – bitte Dietz-Engineering kontaktieren',
     'lizenz.limit': 'Gerätelimit der Lizenz erreicht ({n} Geräte). Bitte Lizenz erweitern – Dietz-Engineering kontaktieren.',
     'krypto.aktiv': '🔒 AES-256-verschlüsselt',
+    'verlauf.uebersetzt': 'KI-Übersetzung – Original per Mauszeiger',
   },
 
   /* ================= ENGLISH ================= */
@@ -326,6 +327,7 @@ const UEBERSETZUNGEN = {
     'lizenz.abgelaufen': '⚠ License expired – please contact Dietz-Engineering',
     'lizenz.limit': 'License device limit reached ({n} devices). Please upgrade – contact Dietz-Engineering.',
     'krypto.aktiv': '🔒 AES-256 encrypted',
+    'verlauf.uebersetzt': 'AI translation – hover for original',
   },
 
   /* ================= FRANÇAIS ================= */
@@ -475,6 +477,7 @@ const UEBERSETZUNGEN = {
     'lizenz.abgelaufen': '⚠ Licence expirée – veuillez contacter Dietz-Engineering',
     'lizenz.limit': 'Limite d’appareils de la licence atteinte ({n}). Veuillez étendre la licence – contacter Dietz-Engineering.',
     'krypto.aktiv': '🔒 Chiffrement AES-256',
+    'verlauf.uebersetzt': 'Traduction IA – original au survol',
   },
 
   /* ================= ITALIANO ================= */
@@ -624,6 +627,7 @@ const UEBERSETZUNGEN = {
     'lizenz.abgelaufen': '⚠ Licenza scaduta – contattare Dietz-Engineering',
     'lizenz.limit': 'Limite di apparecchi della licenza raggiunto ({n}). Estendere la licenza – contattare Dietz-Engineering.',
     'krypto.aktiv': '🔒 Crittografia AES-256',
+    'verlauf.uebersetzt': 'Traduzione IA – originale al passaggio del mouse',
   },
 };
 

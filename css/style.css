@@ -369,3 +369,10 @@ tbody tr:last-child td { border-bottom: none; }
 .lizenz-status.lizenz-demo { color: var(--yellow); font-weight: 600; }
 .lizenz-status.lizenz-warn { color: var(--red); font-weight: 600; }
 .krypto-status { color: var(--green); margin-left: 8px; }
+
+/* ===== KI-Übersetzungs-Kennzeichnung im Verlauf ===== */
+.ki-badge {
+  background: var(--accent-bg); color: var(--blue-dark);
+  font-size: 10px; font-weight: 600; padding: 1px 7px; border-radius: 999px;
+  cursor: help; margin-left: 4px;
+}

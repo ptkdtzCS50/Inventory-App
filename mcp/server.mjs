@@ -331,6 +331,57 @@ const TOOLS = [
     },
   },
   {
+    name: 'uebersetzungen_fehlen',
+    description: 'Listet Freitext-Verlaufseinträge ohne gespeicherte Übersetzung in der Zielsprache. Für die einmalige, dauerhaft gespeicherte Übersetzung: Einträge übersetzen und mit uebersetzung_speichern sichern. Das Original bleibt immer erhalten.',
+    inputSchema: { type: 'object', properties: {
+      sprache: { type: 'string', enum: ['de', 'en', 'fr', 'it'], description: 'Zielsprache' },
+      limit: { type: 'number', description: 'max. Einträge (Standard 50)' },
+    }, required: ['sprache'] },
+    async ausfuehren(args, { daten }) {
+      const limit = args.limit || 50;
+      const offen = [];
+      for (const g of daten.devices) {
+        for (const e of g.log || []) {
+          if (e.key) continue; // strukturierte Einträge rendern sich selbst mehrsprachig
+          if (e.uebersetzungen && e.uebersetzungen[args.sprache]) continue;
+          offen.push({ geraetId: g.id, geraet: g.name, ts: e.ts, autor: e.author, text: e.text });
+          if (offen.length >= limit) break;
+        }
+        if (offen.length >= limit) break;
+      }
+      return offen.length
+        ? `${offen.length} Eintrag/Einträge ohne ${args.sprache}-Übersetzung:\n` + JSON.stringify(offen, null, 2)
+          + '\n\nBitte übersetzen und mit uebersetzung_speichern sichern (geraetId + ts referenzieren den Eintrag).'
+        : `Alle Verlaufseinträge haben bereits eine ${args.sprache}-Übersetzung.`;
+    },
+  },
+  {
+    name: 'uebersetzung_speichern',
+    description: 'Speichert einmalige Übersetzungen von Verlaufseinträgen dauerhaft. Das Original bleibt unverändert; die App zeigt die Übersetzung in der jeweiligen Sprache mit "KI-Übersetzung"-Kennzeichnung.',
+    inputSchema: { type: 'object', properties: {
+      eintraege: { type: 'array', items: { type: 'object', properties: {
+        geraetId: { type: 'number' }, ts: { type: 'number' },
+        sprache: { type: 'string', enum: ['de', 'en', 'fr', 'it'] }, text: { type: 'string' },
+      }, required: ['geraetId', 'ts', 'sprache', 'text'] } },
+    }, required: ['eintraege'] },
+    schreibt: true,
+    async ausfuehren(args, ctx) {
+      let gespeichert = 0;
+      const fehler = [];
+      for (const u of args.eintraege || []) {
+        const g = ctx.daten.devices.find((x) => x.id === u.geraetId);
+        const e = g && (g.log || []).find((x) => x.ts === u.ts);
+        if (!e) { fehler.push(`#${u.geraetId}/${u.ts}`); continue; }
+        e.uebersetzungen = e.uebersetzungen || {};
+        e.uebersetzungen[u.sprache] = u.text;
+        gespeichert++;
+      }
+      if (gespeichert) ctx.geaendert = true;
+      return `${gespeichert} Übersetzung(en) dauerhaft gespeichert.`
+        + (fehler.length ? ` Nicht gefunden: ${fehler.join(', ')}` : '');
+    },
+  },
+  {
     name: 'statistik',
     description: 'Ausfallstatistik: Defekte, Ausfalltage und Reparaturkosten (CHF) pro Hersteller und pro Standort, normalisiert pro Gerät.',
     inputSchema: { type: 'object', properties: {} },

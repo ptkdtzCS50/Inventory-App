@@ -377,10 +377,16 @@ function systemEreignis(g, key, params, key2, params2) {
   g.log.push({ ts: Date.now(), author: 'System', type: 'system', key, params, key2, params2 });
 }
 
-/** Verlaufseintrag in der aktiven Sprache rendern (alte Text-Einträge unverändert). */
+/** Verlaufseintrag in der aktiven Sprache rendern. Reihenfolge:
+ * strukturiertes Ereignis -> gespeicherte (einmalige) Übersetzung -> Originaltext. */
 function logEintragText(e) {
-  if (!e.key) return e.text;
-  return t(e.key, e.params) + (e.key2 ? ' ' + t(e.key2, e.params2) : '');
+  if (e.key) return t(e.key, e.params) + (e.key2 ? ' ' + t(e.key2, e.params2) : '');
+  return (e.uebersetzungen && e.uebersetzungen[sprache]) || e.text;
+}
+
+/** true, wenn für den Eintrag eine gespeicherte Übersetzung angezeigt wird. */
+function zeigtUebersetzung(e) {
+  return !e.key && !!(e.uebersetzungen && e.uebersetzungen[sprache]) && e.uebersetzungen[sprache] !== e.text;
 }
 
 /**
@@ -488,7 +494,7 @@ function renderDetail() {
       <div class="log-list">
         ${logSortiert.length ? logSortiert.map((e) => `
           <div class="log-entry ${e.type === 'system' ? 'log-system' : ''}">
-            <div class="log-meta"><strong>${esc(e.author)}</strong> · ${formatZeit(e.ts)}</div>
+            <div class="log-meta"><strong>${esc(e.author)}</strong> · ${formatZeit(e.ts)}${zeigtUebersetzung(e) ? ` <span class="ki-badge" title="${esc(e.text)}">${t('verlauf.uebersetzt')}</span>` : ''}</div>
             <div>${esc(logEintragText(e))}</div>
           </div>`).join('') : `<small>${t('verlauf.keine')}</small>`}
       </div>
