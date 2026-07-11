@@ -627,10 +627,79 @@ const UEBERSETZUNGEN = {
   },
 };
 
+/* =====================================================================
+ * Fachwörterbuch: Domänenbegriffe (Prüfarten, Gerätekategorien,
+ * Abteilungen) werden kanonisch (deutsch) GESPEICHERT und bei der
+ * ANZEIGE übersetzt. Unbekannte Begriffe (eigene Kategorien, Teams,
+ * Gerätenamen) bleiben unverändert – Freitext-Daten werden nie
+ * maschinell übersetzt (Audit-Integrität des Verlaufs).
+ * =================================================================== */
+const BEGRIFFE = {
+  en: {
+    'Wartung': 'Maintenance', 'Validierung': 'Validation',
+    'Mikrotom': 'Microtome', 'Färbeautomat': 'Stainer', 'Eindeckautomat': 'Coverslipper',
+    'Gewebeeinbettautomat': 'Tissue processor', 'Immunfärbeautomat': 'IHC stainer',
+    'Kryostat': 'Cryostat', 'Laborkühlschrank': 'Laboratory refrigerator', 'Mikroskop': 'Microscope',
+    'Zentrifuge': 'Centrifuge', 'Thermocycler': 'Thermal cycler', 'Paraffinausgießstation': 'Paraffin embedding station',
+    'Histologie': 'Histology', 'Zytologie': 'Cytology', 'Immunhistochemie': 'Immunohistochemistry',
+    'Molekularpathologie': 'Molecular pathology', 'Probenarchiv': 'Sample archive', 'Schnellschnitt-Labor': 'Frozen section lab',
+  },
+  fr: {
+    'Wartung': 'Maintenance', 'Validierung': 'Validation',
+    'Mikrotom': 'Microtome', 'Färbeautomat': 'Automate de coloration', 'Eindeckautomat': 'Automate de montage',
+    'Gewebeeinbettautomat': "Automate d'inclusion", 'Immunfärbeautomat': "Automate d'immunomarquage",
+    'Kryostat': 'Cryostat', 'Laborkühlschrank': 'Réfrigérateur de laboratoire', 'Mikroskop': 'Microscope',
+    'Zentrifuge': 'Centrifugeuse', 'Thermocycler': 'Thermocycleur', 'Paraffinausgießstation': "Station d'enrobage paraffine",
+    'Histologie': 'Histologie', 'Zytologie': 'Cytologie', 'Immunhistochemie': 'Immunohistochimie',
+    'Molekularpathologie': 'Pathologie moléculaire', 'Probenarchiv': "Archives d'échantillons", 'Schnellschnitt-Labor': "Laboratoire d'examens extemporanés",
+  },
+  it: {
+    'Wartung': 'Manutenzione', 'Validierung': 'Validazione',
+    'Mikrotom': 'Microtomo', 'Färbeautomat': 'Coloratore automatico', 'Eindeckautomat': 'Montavetrini automatico',
+    'Gewebeeinbettautomat': 'Processore tissutale', 'Immunfärbeautomat': 'Coloratore IHC',
+    'Kryostat': 'Criostato', 'Laborkühlschrank': 'Frigorifero da laboratorio', 'Mikroskop': 'Microscopio',
+    'Zentrifuge': 'Centrifuga', 'Thermocycler': 'Termociclatore', 'Paraffinausgießstation': 'Stazione di inclusione in paraffina',
+    'Histologie': 'Istologia', 'Zytologie': 'Citologia', 'Immunhistochemie': 'Immunoistochimica',
+    'Molekularpathologie': 'Patologia molecolare', 'Probenarchiv': 'Archivio campioni', 'Schnellschnitt-Labor': 'Laboratorio esami estemporanei',
+  },
+};
+
+/** Fachbegriff in der aktiven Sprache anzeigen (unbekannte Begriffe unverändert). */
+function tBegriff(wert) {
+  if (!wert || sprache === 'de') return wert;
+  return (BEGRIFFE[sprache] || {})[wert] || wert;
+}
+
+/**
+ * Eingaben auf den kanonischen (deutschen) Begriff zurückführen, damit
+ * z. B. eine auf Englisch angelegte Kategorie "Microscope" für alle
+ * Sprachen als bekannter Begriff gespeichert wird.
+ */
+function normalisiereBegriff(wert) {
+  if (!wert) return wert;
+  for (const sp of Object.keys(BEGRIFFE)) {
+    for (const [kanonisch, uebersetzt] of Object.entries(BEGRIFFE[sp])) {
+      if (uebersetzt.toLowerCase() === wert.toLowerCase()) return kanonisch;
+    }
+  }
+  return wert;
+}
+
 /** Text in der aktiven Sprache (Fallback: Deutsch, dann der Schlüssel selbst). */
 function t(key, params) {
   let s = UEBERSETZUNGEN[sprache][key] ?? UEBERSETZUNGEN.de[key] ?? key;
-  if (params) for (const [k, v] of Object.entries(params)) s = s.replaceAll('{' + k + '}', v);
+  if (params) {
+    for (const [k, v] of Object.entries(params)) {
+      // '§schluessel' -> Wert wird selbst übersetzt: erst als UI-Schlüssel,
+      // sonst als Fachbegriff (z. B. '§status.ok' bzw. '§Wartung')
+      let wert = v;
+      if (typeof v === 'string' && v.startsWith('§')) {
+        const k = v.slice(1);
+        wert = (UEBERSETZUNGEN[sprache][k] ?? UEBERSETZUNGEN.de[k]) !== undefined ? t(k) : tBegriff(k);
+      }
+      s = s.replaceAll('{' + k + '}', wert);
+    }
+  }
   return s;
 }
 

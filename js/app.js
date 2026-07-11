@@ -180,7 +180,7 @@ function renderKacheln() {
 function wartungZelle(g) {
   const f = naechsteFaelligkeit(g);
   if (!f) return `<small>${t('zelle.keinePruefungen')}</small>`;
-  const label = `${formatDatum(f.datum)} <small>(${esc(f.art)})</small>`;
+  const label = `${formatDatum(f.datum)} <small>(${esc(tBegriff(f.art))})</small>`;
   if (f.tage < 0) return `<span class="maint-overdue">${label}<br><small>${t('zelle.ueberfaelligSeit', { n: -f.tage })}</small></span>`;
   if (f.tage <= WARTUNG_VORLAUF_TAGE) return `<span class="maint-soon">${label}<br><small>${t('zelle.inTagen', { n: f.tage })}</small></span>`;
   return `${label}<br><small>${t('zelle.inTagen', { n: f.tage })}</small>`;
@@ -203,9 +203,9 @@ function geraetZeile(g) {
   return `<tr data-id="${g.id}">
     <td><span class="badge ${st.klasse}">${st.text}</span></td>
     <td><span class="device-name">${esc(g.name)}</span><br><span class="device-sub">${esc(g.model || '')} · ${t('zelle.inv')} ${esc(g.inventoryNo || '–')}</span></td>
-    <td>${esc(g.category)}</td>
+    <td>${esc(tBegriff(g.category))}</td>
     <td>${esc(g.location)}${g.room ? `<br><span class="device-sub">${t('zelle.raum')} ${esc(g.room)}</span>` : ''}</td>
-    <td>${esc(g.department)}${g.team ? `<br><span class="device-sub">${esc(g.team)}</span>` : ''}</td>
+    <td>${esc(tBegriff(g.department))}${g.team ? `<br><span class="device-sub">${esc(g.team)}</span>` : ''}</td>
     <td>${esc(g.manufacturer)}</td>
     <td>${wartungZelle(g)}</td>
     <td>${ausfallZelle(g)}</td>
@@ -217,7 +217,8 @@ function geraetZeile(g) {
 /** Anzeigename des Gruppierungswerts eines Geräts. */
 function gruppenWert(g) {
   if (zustand.gruppe === 'status') return statusInfo(effektiverStatus(g)).text;
-  return g[zustand.gruppe] || t('ohneAngabe');
+  const wert = g[zustand.gruppe] || t('ohneAngabe');
+  return ['category', 'department'].includes(zustand.gruppe) ? tBegriff(wert) : wert;
 }
 
 function renderTabelle() {
@@ -289,27 +290,27 @@ function fuelleGruppenOptionen() {
 
 function fuelleFilterOptionen() {
   fuelleGruppenOptionen();
-  const setze = (sel, werte, aktuell) => {
+  const setze = (sel, werte, aktuell, uebersetzen = false) => {
     const el = $(sel);
     const erste = el.querySelector('option').outerHTML;
     el.innerHTML = erste + [...werte].sort((a, b) => a.localeCompare(b, 'de'))
-      .map((w) => `<option value="${esc(w)}">${esc(w)}</option>`).join('');
+      .map((w) => `<option value="${esc(w)}">${esc(uebersetzen ? tBegriff(w) : w)}</option>`).join('');
     el.value = aktuell;
   };
   const standorte = new Set(daten.devices.map((g) => g.location));
   const abteilungen = new Set(daten.devices.map((g) => g.department));
   const hersteller = new Set(daten.devices.map((g) => g.manufacturer));
   setze('#filter-standort', standorte, zustand.standort);
-  setze('#filter-abteilung', abteilungen, zustand.abteilung);
+  setze('#filter-abteilung', abteilungen, zustand.abteilung, true);
   setze('#stat-standort', standorte, $('#stat-standort').value);
-  setze('#stat-abteilung', abteilungen, $('#stat-abteilung').value);
+  setze('#stat-abteilung', abteilungen, $('#stat-abteilung').value, true);
   setze('#stat-hersteller', hersteller, $('#stat-hersteller').value);
   setze('#kal-standort', standorte, $('#kal-standort').value);
-  setze('#kal-abteilung', abteilungen, $('#kal-abteilung').value);
+  setze('#kal-abteilung', abteilungen, $('#kal-abteilung').value, true);
   setze('#bel-standort', standorte, $('#bel-standort').value);
-  setze('#bel-abteilung', abteilungen, $('#bel-abteilung').value);
+  setze('#bel-abteilung', abteilungen, $('#bel-abteilung').value, true);
   const pruefarten = new Set(daten.devices.flatMap((g) => (g.pruefungen || []).map((p) => p.art)));
-  setze('#kal-art', pruefarten, $('#kal-art').value);
+  setze('#kal-art', pruefarten, $('#kal-art').value, true);
 
   // Datalists im Formular
   const dl = (id, werte) => { $(id).innerHTML = [...werte].map((w) => `<option value="${esc(w)}">`).join(''); };
@@ -329,9 +330,9 @@ function berechneBenachrichtigungen() {
   for (const g of daten.devices) {
     for (const f of faelligkeiten(g)) {
       if (f.tage < 0) {
-        liste.push({ id: g.id, icon: '🔴', text: t('notif.ueberfaellig', { geraet: g.name, art: f.art, n: -f.tage }) });
+        liste.push({ id: g.id, icon: '🔴', text: t('notif.ueberfaellig', { geraet: g.name, art: tBegriff(f.art), n: -f.tage }) });
       } else if (f.tage <= WARTUNG_VORLAUF_TAGE && g.status !== 'ausser_betrieb') {
-        liste.push({ id: g.id, icon: '🟡', text: t('notif.faellig', { geraet: g.name, art: f.art, n: f.tage, datum: formatDatum(f.datum) }) });
+        liste.push({ id: g.id, icon: '🟡', text: t('notif.faellig', { geraet: g.name, art: tBegriff(f.art), n: f.tage, datum: formatDatum(f.datum) }) });
       }
     }
     const dt = defektTage(g);
@@ -362,6 +363,24 @@ function findeGeraet(id) { return daten.devices.find((g) => g.id === id); }
 
 function systemEintrag(g, text) {
   g.log.push({ ts: Date.now(), author: 'System', type: 'system', text });
+}
+
+/**
+ * Strukturierter Systemeintrag: speichert Ereignis-Schlüssel + Parameter
+ * statt fertigem Text und wird dadurch in der jeweils aktiven Sprache
+ * gerendert. Parameterwerte mit '§'-Präfix werden beim Rendern übersetzt
+ * (Statusnamen, Prüfarten). key2/params2 hängt einen zweiten Satz an
+ * (z. B. Grund oder Kosten).
+ */
+function systemEreignis(g, key, params, key2, params2) {
+  g.log = g.log || [];
+  g.log.push({ ts: Date.now(), author: 'System', type: 'system', key, params, key2, params2 });
+}
+
+/** Verlaufseintrag in der aktiven Sprache rendern (alte Text-Einträge unverändert). */
+function logEintragText(e) {
+  if (!e.key) return e.text;
+  return t(e.key, e.params) + (e.key2 ? ' ' + t(e.key2, e.params2) : '');
 }
 
 /**
@@ -419,7 +438,7 @@ function renderDetail() {
         : t('zelle.inTagen', { n: tage }))
       : `<small>${t('pruef.nie')}</small>`;
     return `<tr>
-      <td><strong>${esc(p.art)}</strong></td>
+      <td><strong>${esc(tBegriff(p.art))}</strong></td>
       <td>${t('pruef.alleMonate', { n: p.intervall })}</td>
       <td>${formatDatum(p.letzte)}</td>
       <td>${nd ? formatDatum(nd) : '–'}<br><small>${status}</small></td>
@@ -429,12 +448,12 @@ function renderDetail() {
 
   $('#detail-body').innerHTML = `
     <dl class="detail-grid">
-      <div><dt>${t('dt.geraetetyp')}</dt><dd>${esc(g.category)}</dd></div>
+      <div><dt>${t('dt.geraetetyp')}</dt><dd>${esc(tBegriff(g.category))}</dd></div>
       <div><dt>${t('dt.herstellerModell')}</dt><dd>${esc(g.manufacturer)} ${esc(g.model || '')}</dd></div>
       <div><dt>${t('dt.seriennummer')}</dt><dd>${esc(g.serial || '–')}</dd></div>
       <div><dt>${t('dt.inventarnummer')}</dt><dd>${esc(g.inventoryNo || '–')}</dd></div>
       <div><dt>${t('dt.standort')}</dt><dd>${esc(g.location)}${g.room ? ' · ' + t('zelle.raum') + ' ' + esc(g.room) : ''}</dd></div>
-      <div><dt>${t('dt.abteilung')}</dt><dd>${esc(g.department)}${g.team ? ' · ' + esc(g.team) : ''}</dd></div>
+      <div><dt>${t('dt.abteilung')}</dt><dd>${esc(tBegriff(g.department))}${g.team ? ' · ' + esc(g.team) : ''}</dd></div>
       <div><dt>${t('dt.anschaffung')}</dt><dd>${formatDatum(g.purchaseDate)}</dd></div>
       <div><dt>${t('dt.garantie')}</dt><dd>${formatDatum(g.warrantyEnd)}</dd></div>
       <div><dt>${t('dt.distributor')}</dt><dd>${esc(g.distributor || '–')}</dd></div>
@@ -470,7 +489,7 @@ function renderDetail() {
         ${logSortiert.length ? logSortiert.map((e) => `
           <div class="log-entry ${e.type === 'system' ? 'log-system' : ''}">
             <div class="log-meta"><strong>${esc(e.author)}</strong> · ${formatZeit(e.ts)}</div>
-            <div>${esc(e.text)}</div>
+            <div>${esc(logEintragText(e))}</div>
           </div>`).join('') : `<small>${t('verlauf.keine')}</small>`}
       </div>
     </div>`;
@@ -499,7 +518,7 @@ function renderDetail() {
     const d = (g.dokumente || []).find((x) => x.id === btn.closest('.dok-row').dataset.dok);
     if (!d || !confirm(t('dok.entfernenFrage', { name: d.name }))) return;
     g.dokumente = g.dokumente.filter((x) => x.id !== d.id);
-    systemEintrag(g, t('sys.dokEntfernt', { dok: d.name, name: nutzer.name }));
+    systemEreignis(g, 'sys.dokEntfernt', { dok: d.name, name: nutzer.name });
     speichereDaten(daten);
     renderDetail();
   }));
@@ -509,7 +528,7 @@ function renderDetail() {
     const name = $('#dok-name').value.trim() || url;
     if (!url) { alert(t('dok.linkFehlt')); return; }
     g.dokumente.push({ id: neueId(), kategorie: $('#dok-kategorie').value, name, typ: 'link', url });
-    systemEintrag(g, t('sys.dokLink', { dok: name, name: nutzer.name }));
+    systemEreignis(g, 'sys.dokLink', { dok: name, name: nutzer.name });
     speichereDaten(daten);
     renderDetail();
   });
@@ -525,7 +544,7 @@ function renderDetail() {
     leser.onload = () => {
       const name = $('#dok-name').value.trim() || datei.name;
       g.dokumente.push({ id: neueId(), kategorie: $('#dok-kategorie').value, name, typ: 'datei', url: leser.result, groesse: datei.size });
-      systemEintrag(g, t('sys.dokUpload', { dok: name, name: nutzer.name }));
+      systemEreignis(g, 'sys.dokUpload', { dok: name, name: nutzer.name });
       speichereDaten(daten);
       renderDetail();
     };
@@ -545,7 +564,7 @@ function renderDetail() {
       return;
     }
     g.belegungen.push({ id: neueId(), von, bis, wer: nutzer.name, zweck });
-    systemEintrag(g, t('sys.reserviert', { zeit: formatBelegZeit({ von, bis }), zweck, name: nutzer.name }));
+    systemEreignis(g, 'sys.reserviert', { zeit: formatBelegZeit({ von, bis }), zweck, name: nutzer.name });
     speichereDaten(daten);
     renderDetail();
     renderAlles(false);
@@ -554,7 +573,7 @@ function renderDetail() {
     const b = (g.belegungen || []).find((x) => x.id === btn.closest('.beleg-row').dataset.beleg);
     if (!b || !confirm(t('beleg.stornoFrage', { zweck: b.zweck, zeit: formatBelegZeit(b) }))) return;
     g.belegungen = g.belegungen.filter((x) => x.id !== b.id);
-    systemEintrag(g, t('sys.storniert', { zeit: formatBelegZeit(b), zweck: b.zweck, name: nutzer.name }));
+    systemEreignis(g, 'sys.storniert', { zeit: formatBelegZeit(b), zweck: b.zweck, name: nutzer.name });
     speichereDaten(daten);
     renderDetail();
     renderAlles(false);
@@ -565,7 +584,7 @@ function renderDetail() {
     const p = g.pruefungen[Number(btn.dataset.pruef)];
     if (!p) return;
     p.letzte = isoDatum(heute());
-    systemEintrag(g, t('sys.pruefung', { art: p.art, name: nutzer.name, datum: formatDatum(pruefungNaechste(p)) }));
+    systemEreignis(g, 'sys.pruefung', { art: '§' + p.art, name: nutzer.name, datum: formatDatum(pruefungNaechste(p)) });
     speichereDaten(daten);
     renderDetail();
     renderAlles(false);
@@ -574,7 +593,7 @@ function renderDetail() {
   // Störungs-E-Mail: Klick im Verlauf dokumentieren (mailto öffnet das Mailprogramm)
   const mailBtn = $('#btn-service-mail');
   if (mailBtn) mailBtn.addEventListener('click', () => {
-    systemEintrag(g, t('sys.serviceMail', { email: g.distEmail, name: nutzer.name }));
+    systemEreignis(g, 'sys.serviceMail', { email: g.distEmail, name: nutzer.name });
     speichereDaten(daten);
     setTimeout(renderDetail, 300);
   });
@@ -597,14 +616,15 @@ function renderDetail() {
 }
 
 function statusAktion(g, aktion) {
-  const alterStatus = statusInfo(effektiverStatus(g)).text;
+  const altCode = effektiverStatus(g);
   switch (aktion) {
     case 'defekt': {
       const grund = prompt(t('dialog.defektGrund'));
       if (grund === null) return;
       g.status = 'defekt';
       g.defectSince = isoDatum(heute());
-      systemEintrag(g, t('sys.defekt', { alt: alterStatus, name: nutzer.name }) + (grund ? ' ' + t('sys.grund', { grund }) : ''));
+      systemEreignis(g, 'sys.defekt', { alt: '§status.' + altCode, name: nutzer.name },
+        grund ? 'sys.grund' : undefined, grund ? { grund } : undefined);
       break;
     }
     case 'repariert': {
@@ -622,7 +642,8 @@ function statusAktion(g, aktion) {
       const dauer = g.defectSince ? tageDiff(g.defectSince, Date.now()) : 0;
       g.status = 'ok';
       g.defectSince = null;
-      systemEintrag(g, t('sys.repariert', { name: nutzer.name, dauer }) + (kosten !== null ? ' ' + t('sys.kosten', { betrag: geld(kosten) }) : ''));
+      systemEreignis(g, 'sys.repariert', { name: nutzer.name, dauer },
+        kosten !== null ? 'sys.kosten' : undefined, kosten !== null ? { betrag: geld(kosten) } : undefined);
       break;
     }
     case 'ausser_betrieb': {
@@ -632,12 +653,12 @@ function statusAktion(g, aktion) {
         g.defectSince = null;
       }
       g.status = 'ausser_betrieb';
-      systemEintrag(g, t('sys.ausser', { alt: alterStatus, name: nutzer.name }));
+      systemEreignis(g, 'sys.ausser', { alt: '§status.' + altCode, name: nutzer.name });
       break;
     }
     case 'in_betrieb': {
       g.status = 'ok';
-      systemEintrag(g, t('sys.inBetrieb', { name: nutzer.name }));
+      systemEreignis(g, 'sys.inBetrieb', { name: nutzer.name });
       break;
     }
     case 'bearbeiten': {
@@ -710,7 +731,7 @@ function renderPruefEditor(pruefungen) {
 /** Prüfarten aus dem Editor einsammeln (Zeilen ohne Art/Intervall werden ignoriert). */
 function samplePruefungen() {
   return $$('#pruef-editor .pruef-row').map((row) => ({
-    art: row.querySelector('.pe-art').value.trim(),
+    art: normalisiereBegriff(row.querySelector('.pe-art').value.trim()),
     intervall: Number(row.querySelector('.pe-intervall').value) || null,
     letzte: row.querySelector('.pe-letzte').value || null,
   })).filter((p) => p.art && p.intervall);
@@ -751,13 +772,13 @@ function speichereFormular(ev) {
   const id = $('#f-id').value ? Number($('#f-id').value) : null;
   const felder = {
     name: $('#f-name').value.trim(),
-    category: $('#f-category').value.trim(),
+    category: normalisiereBegriff($('#f-category').value.trim()),
     manufacturer: $('#f-manufacturer').value.trim(),
     model: $('#f-model').value.trim(),
     serial: $('#f-serial').value.trim(),
     inventoryNo: $('#f-inventory').value.trim(),
     location: $('#f-location').value.trim(),
-    department: $('#f-department').value.trim(),
+    department: normalisiereBegriff($('#f-department').value.trim()),
     room: $('#f-room').value.trim(),
     team: $('#f-team').value.trim(),
     distributor: $('#f-distributor').value.trim(),
@@ -779,7 +800,7 @@ function speichereFormular(ev) {
   if (id) {
     const g = findeGeraet(id);
     Object.assign(g, felder);
-    systemEintrag(g, t('sys.bearbeitet', { name: nutzer.name }));
+    systemEreignis(g, 'sys.bearbeitet', { name: nutzer.name });
   } else {
     if (daten.devices.length >= lizenzGeraetelimit()) {
       alert(t('lizenz.limit', { n: lizenzGeraetelimit() }));
@@ -789,7 +810,7 @@ function speichereFormular(ev) {
       id: daten.nextId++, ...felder,
       status: 'ok', defectSince: null, defectHistory: [], log: [],
     };
-    systemEintrag(g, t('sys.angelegt', { name: nutzer.name }));
+    systemEreignis(g, 'sys.angelegt', { name: nutzer.name });
     daten.devices.push(g);
   }
   speichereDaten(daten);
@@ -852,7 +873,7 @@ function renderStatistik() {
     <th class="num">${t('stat.defekteProGeraet')}</th><th class="num">${t('stat.defekteProJahr')}</th>
     <th class="num">${t('stat.ausfalltage')}</th><th class="num">${t('stat.oAusfall')}</th><th class="num">${t('stat.kosten')}</th></tr></thead><tbody>` +
     ds2.map((s, i) => `<tr>
-      <td class="${i === 0 && s.defekte > 0 ? 'rank-1' : ''}">${esc(s.name)}</td>
+      <td class="${i === 0 && s.defekte > 0 ? 'rank-1' : ''}">${esc(dim === 'department' ? tBegriff(s.name) : s.name)}</td>
       <td class="num">${s.geraete}</td><td class="num">${s.defekte}</td>
       <td class="num">${f1(s.defekteProGeraet)}</td><td class="num">${f1(s.defekteProBetriebsjahr)}</td>
       <td class="num">${s.ausfalltage}</td><td class="num">${t('stat.tage', { n: f1(s.mittlereAusfalldauer) })}</td>
@@ -879,7 +900,7 @@ function renderStatistik() {
     <thead><tr><th>${t('dt.geraetetyp')}</th><th>${t('th.hersteller')}</th><th class="num">${t('stat.geraete')}</th>
     <th class="num">${t('stat.defekte')}</th><th class="num">${t('stat.defekteProGeraet')}</th><th class="num">${t('stat.ausfalltage')}</th></tr></thead><tbody>` +
     ts.map((s) => `<tr>
-      <td>${esc(s.kategorie)}</td><td>${esc(s.hersteller)}</td>
+      <td>${esc(tBegriff(s.kategorie))}</td><td>${esc(s.hersteller)}</td>
       <td class="num">${s.geraete}</td><td class="num">${s.defekte}</td>
       <td class="num">${f1(s.defekte / s.geraete)}</td><td class="num">${s.ausfalltage}</td>
     </tr>`).join('') + '</tbody>';
@@ -1142,8 +1163,8 @@ function renderKalender() {
       ${eintraege.map((i) => `
         <div class="kal-item" data-id="${i.g.id}">
           <span class="kal-datum ${i.tage < 0 ? 'maint-overdue' : i.tage <= WARTUNG_VORLAUF_TAGE ? 'maint-soon' : ''}">${formatDatum(i.datum)}</span>
-          <span class="kal-art">${esc(i.art)}</span>
-          <span class="kal-geraet"><strong>${esc(i.g.name)}</strong> <small>· ${esc(i.g.location)} · ${esc(i.g.department)}</small></span>
+          <span class="kal-art">${esc(tBegriff(i.art))}</span>
+          <span class="kal-geraet"><strong>${esc(i.g.name)}</strong> <small>· ${esc(i.g.location)} · ${esc(tBegriff(i.g.department))}</small></span>
           <span class="kal-tage">${i.tage < 0 ? `<span class="maint-overdue">${t('zelle.ueberfaelligSeit', { n: -i.tage })}</span>` : t('zelle.inTagen', { n: i.tage })}</span>
           <button class="btn btn-sm">${t('zelle.details')}</button>
         </div>`).join('')}
@@ -1170,11 +1191,11 @@ function exportiereICS() {
       'BEGIN:VEVENT',
       `UID:pruefung-${i.g.id}-${encodeURIComponent(i.art)}-${d}@geraetefuhrpark`,
       `DTSTART;VALUE=DATE:${d}`,
-      `SUMMARY:${icsText(`${i.art} ${t('kal.faellig')}: ${i.g.name}`)}`,
+      `SUMMARY:${icsText(`${tBegriff(i.art)} ${t('kal.faellig')}: ${i.g.name}`)}`,
       `DESCRIPTION:${icsText(`${i.g.manufacturer} ${i.g.model || ''} · Inv. ${i.g.inventoryNo || '–'} · SN ${i.g.serial || '–'}`)}`,
       `LOCATION:${icsText(`${i.g.location}${i.g.room ? ', Raum ' + i.g.room : ''}`)}`,
       'BEGIN:VALARM', 'ACTION:DISPLAY',
-      `DESCRIPTION:${icsText(`${i.art} ${t('kal.faellig')}: ${i.g.name}`)}`,
+      `DESCRIPTION:${icsText(`${tBegriff(i.art)} ${t('kal.faellig')}: ${i.g.name}`)}`,
       'TRIGGER:-P7D', 'END:VALARM',
       'END:VEVENT');
   }
@@ -1191,7 +1212,7 @@ function exportiereICS() {
 function erinnerungsMail() {
   const items = kalenderEintraege().filter((i) => i.tage <= WARTUNG_VORLAUF_TAGE);
   if (!items.length) { alert(t('kal.keineFaellig')); return; }
-  const liste = items.map((i) => `- ${formatDatum(i.datum)} · ${i.art} · ${i.g.name} (${i.g.location}, ${i.g.department})${i.tage < 0 ? ` – ${t('mail.ueberfaelligSeit', { n: -i.tage })}` : ''}`).join('\n');
+  const liste = items.map((i) => `- ${formatDatum(i.datum)} · ${tBegriff(i.art)} · ${i.g.name} (${i.g.location}, ${tBegriff(i.g.department)})${i.tage < 0 ? ` – ${t('mail.ueberfaelligSeit', { n: -i.tage })}` : ''}`).join('\n');
   const body = t('mail.erinnerungText', { liste, datum: formatDatum(isoDatum(heute())) });
   location.href = `mailto:?subject=${encodeURIComponent(t('mail.erinnerungBetreff'))}&body=${encodeURIComponent(body)}`;
 }
