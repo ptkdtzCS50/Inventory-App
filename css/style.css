@@ -77,6 +77,7 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 4
 .tab {
   border: none; background: transparent; padding: 8px 16px; border-radius: 8px;
   font-size: 15px; cursor: pointer; color: var(--muted);
+  white-space: nowrap; flex: 0 0 auto;
 }
 .tab.active { background: var(--accent-bg); color: var(--blue-dark); font-weight: 600; }
 .header-right { display: flex; align-items: center; gap: 12px; margin-left: auto; }
@@ -356,14 +357,26 @@ tbody tr:last-child td { border-bottom: none; }
 @media (max-width: 900px) {
   .form-grid { grid-template-columns: 1fr; }
   .detail-grid { grid-template-columns: 1fr; }
-  .tabs { order: 3; width: 100%; margin-left: 0; }
-  .header-right { margin-left: auto; }
+  /* Tab-Band: eigene Zeile, horizontal wischbar statt abgeschnitten/überlappend */
+  .tabs {
+    order: 3; width: 100%; margin-left: 0;
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin; padding-bottom: 2px;
+  }
+  /* Knopfleiste (Sprache, 💡, ✨, 🔔, Rolle, Abmelden): darf umbrechen statt überzulaufen */
+  .header-right { margin-left: auto; flex-wrap: wrap; justify-content: flex-end; row-gap: 6px; min-width: 0; }
 }
 @media (max-width: 600px) {
   .view { padding: 12px; }
   th, td { padding: 8px 8px; }
   .filters input[type="search"] { min-width: 140px; }
   .user-info span:first-child { display: none; }
+  body { overflow-x: hidden; }
+  .app-header { gap: 8px 10px; padding: 8px 12px; }
+  .header-sub { display: none; }
+  .header-right { gap: 6px; }
+  .header-right .btn { padding: 6px 10px; font-size: 13px; }
+  .tab { padding: 7px 12px; font-size: 14px; }
   /* Glocken-Panel: am Smartphone (Hochformat) über die volle Breite statt
      rechts am Glockensymbol verankert – sonst wird es links abgeschnitten */
   .notif-panel { position: fixed; left: 12px; right: 12px; top: 64px; width: auto; max-height: 70vh; }
