@@ -68,6 +68,7 @@
       <select class="sprach-wahl" title="Sprache / Language">
         <option value="de">DE</option><option value="en">EN</option><option value="fr">FR</option><option value="it">IT</option>
       </select>
+      <button id="btn-claude" class="btn btn-ghost btn-claude hidden" title="Claude (KI-Assistent)">✨ <span data-i18n="claude.btn">Claude</span></button>
       <div class="notif-wrap">
         <button id="notif-btn" class="notif-btn" title="Benachrichtigungen">🔔<span id="notif-badge" class="notif-badge hidden"></span></button>
         <div id="notif-panel" class="notif-panel hidden"></div>
@@ -118,6 +119,8 @@
       <button id="btn-fields" class="btn admin-only" data-i18n="btn.felder">⚙ Eigene Felder</button>
       <button id="btn-new-device" class="btn btn-primary admin-only" data-i18n="btn.neuesGeraet">+ Neues Gerät</button>
     </section>
+
+    <div id="qr-filter-hinweis" class="qr-filter hidden"></div>
 
     <section class="table-wrap">
       <table class="device-table" id="device-table">
@@ -366,6 +369,44 @@
       </div>
       <p id="zg-info" class="stat-note"></p>
     </div>
+  </div>
+</div>
+
+<!-- ===== Modal: Statuswechsel (mit Pflichtbegründung) ===== -->
+<div id="modal-status" class="modal-backdrop hidden">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 data-i18n="statusdlg.titel">Status ändern</h2>
+      <button class="modal-close" data-close="modal-status">✕</button>
+    </div>
+    <form id="status-form" class="modal-body">
+      <p id="status-geraet" class="status-geraet"></p>
+      <label data-i18n="statusdlg.neu">Neuer Status *</label>
+      <div id="status-optionen" class="status-optionen"></div>
+      <p class="stat-note" data-i18n="statusdlg.wartungHinweis">„Wartung fällig" (gelb) ergibt sich automatisch aus den hinterlegten Prüfungen.</p>
+      <label for="status-grund" data-i18n="statusdlg.grund">Beschreibung / Begründung *</label>
+      <textarea id="status-grund" required maxlength="500" rows="3" data-i18n-ph="statusdlg.grundPh" placeholder="Was ist passiert? Warum wird der Status geändert?"></textarea>
+      <div id="status-kosten-wrap" class="hidden">
+        <label for="status-kosten" data-i18n="statusdlg.kosten">Reparaturkosten in CHF (optional)</label>
+        <input type="text" id="status-kosten" inputmode="decimal" placeholder="0.00">
+      </div>
+      <p class="stat-note" data-i18n="statusdlg.hinweis">Jede Statusänderung wird dauerhaft im Verlauf dokumentiert: wer, wann, was und warum.</p>
+      <div class="modal-foot">
+        <button type="button" class="btn btn-ghost" data-close="modal-status" data-i18n="form.abbrechen">Abbrechen</button>
+        <button type="submit" class="btn btn-primary" data-i18n="statusdlg.speichern">Status ändern</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ===== Modal: Claude-KI (Connector-Anleitung + Start-Prompt) ===== -->
+<div id="modal-claude" class="modal-backdrop hidden">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 data-i18n="claude.titel">Claude-KI verbinden</h2>
+      <button class="modal-close" data-close="modal-claude">✕</button>
+    </div>
+    <div class="modal-body" id="claude-body"></div>
   </div>
 </div>
 

@@ -101,7 +101,8 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 4
   font-size: 11px; font-weight: 700; border-radius: 999px; padding: 1px 6px;
 }
 .notif-panel {
-  position: absolute; right: 0; top: 34px; width: 340px; max-height: 60vh; overflow: auto;
+  position: absolute; right: 0; top: 34px; width: 340px; max-width: calc(100vw - 24px);
+  max-height: 60vh; overflow: auto;
   background: var(--card); border: 1px solid var(--border); border-radius: 12px;
   box-shadow: 0 12px 40px rgba(0,0,0,.15); z-index: 30;
 }
@@ -361,6 +362,10 @@ tbody tr:last-child td { border-bottom: none; }
   th, td { padding: 8px 8px; }
   .filters input[type="search"] { min-width: 140px; }
   .user-info span:first-child { display: none; }
+  /* Glocken-Panel: am Smartphone (Hochformat) über die volle Breite statt
+     rechts am Glockensymbol verankert – sonst wird es links abgeschnitten */
+  .notif-panel { position: fixed; left: 12px; right: 12px; top: 64px; width: auto; max-height: 70vh; }
+  .btn-claude span { display: none; }
 }
 
 /* ===== Lizenz & Verschlüsselung (Footer) ===== */
@@ -411,3 +416,46 @@ tbody tr:last-child td { border-bottom: none; }
 
 /* Zeichnungs-Viewer liegt über dem Detail-Modal */
 #modal-zeichnung { z-index: 60; }
+
+/* ===== Statuswechsel-Dialog (klickbare Ampel + Pflichtbegründung) ===== */
+#modal-status { z-index: 60; } /* liegt ggf. über dem Detail-Modal */
+.badge-btn { border: none; cursor: pointer; font: inherit; font-size: 12px; font-weight: 600; }
+.badge-btn:hover { filter: brightness(.92); }
+.status-geraet { margin-bottom: 12px; }
+#status-form label { display: block; font-size: 13px; font-weight: 600; margin: 10px 0 4px; }
+.status-optionen { display: flex; gap: 10px; flex-wrap: wrap; }
+.status-option {
+  display: flex !important; align-items: center; gap: 8px; cursor: pointer;
+  border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px; margin: 0 !important;
+}
+.status-option:has(input:checked) { border-color: var(--blue); background: var(--accent-bg); }
+.status-option:has(input:disabled) { opacity: .55; cursor: not-allowed; }
+.status-option small { color: var(--muted); font-weight: 400; }
+#status-grund, #status-kosten {
+  width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px;
+  font: inherit; font-size: 14px;
+}
+
+/* ===== QR-Filter-Hinweisleiste ===== */
+.qr-filter {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  background: var(--accent-bg); border: 1px solid var(--blue); border-radius: 12px;
+  padding: 10px 14px; margin-bottom: 12px; font-size: 14px;
+}
+
+/* ===== Claude-KI (Connector-Anleitung) ===== */
+.btn-claude { white-space: nowrap; }
+.claude-schritte { margin: 10px 0 14px 18px; display: grid; gap: 8px; font-size: 14px; }
+.claude-copyzeile {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 4px;
+}
+.claude-copyzeile code {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+  padding: 6px 10px; font-size: 12px; word-break: break-all;
+}
+#claude-body h3 { font-size: 15px; margin: 14px 0 6px; }
+.claude-prompt {
+  width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px;
+  font-size: 13px; font-family: inherit; color: var(--text); background: var(--bg); resize: vertical;
+}
+.claude-aktionen { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; }

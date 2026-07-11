@@ -19,6 +19,7 @@ const zustand = {
   eingeklappt: new Set(), // eingeklappte Gruppenköpfe (Gruppierungswerte)
   sortKey: 'status', sortDir: 1,
   offenesGeraet: null, // Geräte-ID im Detail-Modal
+  qrGeraet: null, // per QR-Code gescanntes Gerät: Liste zeigt nur dieses (null = aus)
 };
 
 const $ = (sel) => document.querySelector(sel);
@@ -119,10 +120,13 @@ function zeigeApp() {
   $('#user-role').textContent = nutzer.role === 'admin' ? t('rolle.admin') : t('rolle.mitarbeiter');
   $$('.admin-only').forEach((el) => el.classList.toggle('hidden', nutzer.role !== 'admin'));
   renderAlles();
-  // Deep-Link aus QR-Code (?geraet=ID): Detailansicht direkt öffnen
+  // Deep-Link aus QR-Code (?geraet=ID): Liste auf das gescannte Gerät
+  // filtern UND Detailansicht öffnen – auch wenn dazwischen die Anmeldung lag
   const qrId = Number(new URLSearchParams(location.search).get('geraet'));
   if (qrId && findeGeraet(qrId)) {
     try { history.replaceState(null, '', location.pathname); } catch (e) { /* file:// o. ä. */ }
+    zustand.qrGeraet = qrId;
+    renderTabelle();
     oeffneDetail(qrId);
   }
 }
@@ -132,6 +136,12 @@ function istAdmin() { return nutzer && nutzer.role === 'admin'; }
 /* ===================== Übersicht ===================== */
 
 function gefilterteListe() {
+  // Aktiver QR-Scan: nur das gescannte Gerät zeigen (bis der Filter aufgehoben wird)
+  if (zustand.qrGeraet) {
+    const g = findeGeraet(zustand.qrGeraet);
+    if (g) return [g];
+    zustand.qrGeraet = null;
+  }
   const s = zustand.suche.toLowerCase();
   let liste = daten.devices.filter((g) => {
     if (s && ![g.name, g.serial, g.inventoryNo, g.model, g.manufacturer, g.room, g.team]
@@ -201,7 +211,7 @@ function ausfallZelle(g) {
 function geraetZeile(g) {
   const st = statusInfo(effektiverStatus(g));
   return `<tr data-id="${g.id}">
-    <td><span class="badge ${st.klasse}">${st.text}</span></td>
+    <td><button type="button" class="badge badge-btn ${st.klasse}" title="${esc(t('statusdlg.titel'))}">${st.text}</button></td>
     <td><span class="device-name">${esc(g.name)}</span><br><span class="device-sub">${esc(g.model || '')} · ${t('zelle.inv')} ${esc(g.inventoryNo || '–')}</span></td>
     <td>${esc(tBegriff(g.category))}</td>
     <td>${esc(g.location)}${g.room ? `<br><span class="device-sub">${t('zelle.raum')} ${esc(g.room)}</span>` : ''}</td>
@@ -224,6 +234,19 @@ function gruppenWert(g) {
 function renderTabelle() {
   const liste = gefilterteListe();
   $('#empty-hint').classList.toggle('hidden', liste.length > 0);
+
+  // Hinweisleiste, solange die Liste per QR-Scan auf ein Gerät gefiltert ist
+  const qrG = zustand.qrGeraet ? findeGeraet(zustand.qrGeraet) : null;
+  const qrHinweis = $('#qr-filter-hinweis');
+  qrHinweis.classList.toggle('hidden', !qrG);
+  if (qrG) {
+    qrHinweis.innerHTML = `<span>📷 ${t('qrfilter.hinweis', { name: qrG.name })}</span>
+      <button type="button" class="btn btn-sm" id="qr-filter-reset">${t('qrfilter.alle')}</button>`;
+    $('#qr-filter-reset').addEventListener('click', () => {
+      zustand.qrGeraet = null;
+      renderTabelle();
+    });
+  }
 
   let html;
   if (zustand.gruppe) {
@@ -261,6 +284,8 @@ function renderTabelle() {
 
   $$('#device-tbody tr[data-id]').forEach((tr) => {
     tr.querySelector('.btn-detail').addEventListener('click', () => oeffneDetail(Number(tr.dataset.id)));
+    // Klick auf die Status-Ampel öffnet den Statuswechsel-Dialog
+    tr.querySelector('.badge-btn').addEventListener('click', () => oeffneStatusDialog(Number(tr.dataset.id)));
   });
 
   // Gruppenköpfe: Klick klappt die Gruppe ein/aus
@@ -370,17 +395,21 @@ function systemEintrag(g, text) {
  * statt fertigem Text und wird dadurch in der jeweils aktiven Sprache
  * gerendert. Parameterwerte mit '§'-Präfix werden beim Rendern übersetzt
  * (Statusnamen, Prüfarten). key2/params2 hängt einen zweiten Satz an
- * (z. B. Grund oder Kosten).
+ * (z. B. Grund oder Kosten), key3/params3 einen dritten.
  */
-function systemEreignis(g, key, params, key2, params2) {
+function systemEreignis(g, key, params, key2, params2, key3, params3) {
   g.log = g.log || [];
-  g.log.push({ ts: Date.now(), author: 'System', type: 'system', key, params, key2, params2 });
+  g.log.push({ ts: Date.now(), author: 'System', type: 'system', key, params, key2, params2, key3, params3 });
 }
 
 /** Verlaufseintrag in der aktiven Sprache rendern. Reihenfolge:
  * strukturiertes Ereignis -> gespeicherte (einmalige) Übersetzung -> Originaltext. */
 function logEintragText(e) {
-  if (e.key) return t(e.key, e.params) + (e.key2 ? ' ' + t(e.key2, e.params2) : '');
+  if (e.key) {
+    return t(e.key, e.params)
+      + (e.key2 ? ' ' + t(e.key2, e.params2) : '')
+      + (e.key3 ? ' ' + t(e.key3, e.params3) : '');
+  }
   return (e.uebersetzungen && e.uebersetzungen[sprache]) || e.text;
 }
 
@@ -419,14 +448,12 @@ function renderDetail() {
   if (!g) return;
   const st = statusInfo(effektiverStatus(g));
   const dt = defektTage(g);
-  $('#detail-title').innerHTML = `${esc(g.name)} <span class="badge ${st.klasse}">${st.text}</span>`;
+  $('#detail-title').innerHTML = `${esc(g.name)} <button type="button" class="badge badge-btn ${st.klasse}" title="${esc(t('statusdlg.titel'))}">${st.text}</button>`;
+  $('#detail-title .badge-btn').addEventListener('click', () => oeffneStatusDialog(g.id));
 
   const aktionen = [];
-  if (g.status !== 'defekt') aktionen.push(`<button class="btn btn-danger btn-status" data-aktion="defekt">${t('aktion.defekt')}</button>`);
-  if (g.status === 'defekt') aktionen.push(`<button class="btn btn-status" data-aktion="repariert">${t('aktion.repariert')}</button>`);
+  aktionen.push(`<button class="btn btn-primary btn-status" data-aktion="status">${t('aktion.status')}</button>`);
   if (g.status === 'defekt' && g.distEmail) aktionen.push(`<a class="btn btn-status" id="btn-service-mail" href="${serviceMailLink(g)}">${t('aktion.service')}</a>`);
-  if (g.status !== 'ausser_betrieb') aktionen.push(`<button class="btn btn-status" data-aktion="ausser_betrieb">${t('aktion.ausser')}</button>`);
-  else aktionen.push(`<button class="btn btn-status" data-aktion="in_betrieb">${t('aktion.inBetrieb')}</button>`);
   if (istAdmin()) {
     aktionen.push(`<button class="btn btn-status" data-aktion="bearbeiten">${t('aktion.bearbeiten')}</button>`);
     aktionen.push(`<button class="btn btn-danger btn-status" data-aktion="loeschen">${t('aktion.loeschen')}</button>`);
@@ -723,50 +750,10 @@ function renderDetail() {
 }
 
 function statusAktion(g, aktion) {
-  const altCode = effektiverStatus(g);
   switch (aktion) {
-    case 'defekt': {
-      const grund = prompt(t('dialog.defektGrund'));
-      if (grund === null) return;
-      g.status = 'defekt';
-      g.defectSince = isoDatum(heute());
-      systemEreignis(g, 'sys.defekt', { alt: '§status.' + altCode, name: nutzer.name },
-        grund ? 'sys.grund' : undefined, grund ? { grund } : undefined);
-      break;
-    }
-    case 'repariert': {
-      // Reparaturkosten optional erfassen (fließen in die Statistik ein)
-      let kosten = null;
-      const eingabe = prompt(t('dialog.kosten'));
-      if (eingabe) {
-        const zahl = parseFloat(eingabe.replace(/\./g, '').replace(',', '.'));
-        if (!isNaN(zahl) && zahl >= 0) kosten = zahl;
-      }
-      if (g.defectSince) {
-        g.defectHistory = g.defectHistory || [];
-        g.defectHistory.push({ start: g.defectSince, end: isoDatum(heute()), kosten });
-      }
-      const dauer = g.defectSince ? tageDiff(g.defectSince, Date.now()) : 0;
-      g.status = 'ok';
-      g.defectSince = null;
-      systemEreignis(g, 'sys.repariert', { name: nutzer.name, dauer },
-        kosten !== null ? 'sys.kosten' : undefined, kosten !== null ? { betrag: geld(kosten) } : undefined);
-      break;
-    }
-    case 'ausser_betrieb': {
-      if (g.status === 'defekt' && g.defectSince) {
-        g.defectHistory = g.defectHistory || [];
-        g.defectHistory.push({ start: g.defectSince, end: isoDatum(heute()) });
-        g.defectSince = null;
-      }
-      g.status = 'ausser_betrieb';
-      systemEreignis(g, 'sys.ausser', { alt: '§status.' + altCode, name: nutzer.name });
-      break;
-    }
-    case 'in_betrieb': {
-      g.status = 'ok';
-      systemEreignis(g, 'sys.inBetrieb', { name: nutzer.name });
-      break;
+    case 'status': {
+      oeffneStatusDialog(g.id);
+      return;
     }
     case 'bearbeiten': {
       $('#modal-detail').classList.add('hidden');
@@ -782,8 +769,87 @@ function statusAktion(g, aktion) {
       return;
     }
   }
+}
+
+/* ===================== Statuswechsel-Dialog (Ä1) ===================== */
+
+/** Geldbetrag aus einer Nutzereingabe lesen (versteht 1'234.50, 1.234,50 und 150.50). */
+function parseBetrag(eingabe) {
+  let s = String(eingabe || '').replace(/['  ]/g, '');
+  if (!s) return null;
+  if (s.includes('.') && s.includes(',')) {
+    // das hintere Zeichen ist der Dezimaltrenner, das vordere Tausendertrenner
+    if (s.lastIndexOf(',') > s.lastIndexOf('.')) s = s.replace(/\./g, '').replace(',', '.');
+    else s = s.replace(/,/g, '');
+  } else {
+    s = s.replace(',', '.');
+  }
+  const zahl = parseFloat(s);
+  return !isNaN(zahl) && zahl >= 0 ? zahl : null;
+}
+
+/** Dialog öffnen: neuen Status wählen + Pflichtbegründung (wer/wann/was/warum im Verlauf). */
+function oeffneStatusDialog(id) {
+  const g = findeGeraet(id);
+  if (!g) return;
+  zustand.statusDialogGeraet = id;
+  const st = statusInfo(effektiverStatus(g));
+  $('#status-geraet').innerHTML = `<strong>${esc(g.name)}</strong> · ${t('statusdlg.aktuell')}: <span class="badge ${st.klasse}">${st.text}</span>`;
+  // 'wartung' ist kein wählbarer Status – er ergibt sich automatisch aus fälligen Prüfungen
+  $('#status-optionen').innerHTML = ['ok', 'defekt', 'ausser_betrieb'].map((s) => {
+    const i = statusInfo(s);
+    return `<label class="status-option">
+      <input type="radio" name="status-neu" value="${s}" ${s === g.status ? 'disabled' : ''} required>
+      <span class="badge ${i.klasse}">${i.text}</span>${s === g.status ? ` <small>${t('statusdlg.istAktuell')}</small>` : ''}
+    </label>`;
+  }).join('');
+  $('#status-grund').value = '';
+  $('#status-kosten').value = '';
+  $('#status-kosten-wrap').classList.add('hidden');
+  // Kostenfeld nur beim Abschluss eines Defekts (Defekt → Funktionsfähig) anbieten
+  $$('#status-optionen input').forEach((r) => r.addEventListener('change', () => {
+    $('#status-kosten-wrap').classList.toggle('hidden', !(r.value === 'ok' && g.status === 'defekt'));
+  }));
+  $('#modal-status').classList.remove('hidden');
+  $('#status-grund').focus();
+}
+
+function speichereStatuswechsel(ev) {
+  ev.preventDefault();
+  const g = findeGeraet(zustand.statusDialogGeraet);
+  const gewaehlt = document.querySelector('input[name="status-neu"]:checked');
+  const grund = $('#status-grund').value.trim();
+  if (!g || !gewaehlt || !grund) return;
+  const neu = gewaehlt.value;
+  const alt = effektiverStatus(g);
+
+  let kosten = null, dauer = null;
+  if (neu === 'defekt') {
+    g.status = 'defekt';
+    g.defectSince = isoDatum(heute());
+  } else {
+    // offenen Defekt abschließen (Ausfall in die Historie, Kosten in die Statistik)
+    if (g.status === 'defekt' && g.defectSince) {
+      if (neu === 'ok') kosten = parseBetrag($('#status-kosten').value);
+      dauer = tageDiff(g.defectSince, Date.now());
+      g.defectHistory = g.defectHistory || [];
+      g.defectHistory.push({ start: g.defectSince, end: isoDatum(heute()), kosten });
+      g.defectSince = null;
+    }
+    g.status = neu; // 'ok' oder 'ausser_betrieb'
+  }
+
+  let key3, params3;
+  if (dauer !== null && kosten !== null) { key3 = 'sys.ausfallKosten'; params3 = { dauer, betrag: geld(kosten) }; }
+  else if (dauer !== null) { key3 = 'sys.ausfallinfo'; params3 = { dauer }; }
+  else if (kosten !== null) { key3 = 'sys.kosten'; params3 = { betrag: geld(kosten) }; }
+  systemEreignis(g, 'sys.statuswechsel',
+    { alt: '§status.' + alt, neu: '§status.' + effektiverStatus(g), name: nutzer.name },
+    'sys.grund', { grund }, key3, params3);
+
   speichereDaten(daten);
-  renderDetail();
+  $('#modal-status').classList.add('hidden');
+  if (!$('#modal-detail').classList.contains('hidden')) renderDetail();
   renderAlles(false);
 }
 
@@ -1574,6 +1640,63 @@ async function renderLizenz() {
   if (krypto) krypto.textContent = verschluesselungAktiv() ? t('krypto.aktiv') : '';
 }
 
+/* ===================== Claude-KI: Connector-Anleitung & Start-Prompt ===================== */
+
+/** true, wenn ein MCP-Server konfiguriert ist (js/config.js). */
+function claudeAktiv() {
+  return typeof MCP_SERVER_URL !== 'undefined' && !!MCP_SERVER_URL;
+}
+
+/** Text in die Zwischenablage kopieren und den Button kurz als „Kopiert" markieren. */
+async function kopiereText(text, btn) {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch (e) {
+    // Fallback für ältere Browser / fehlende Berechtigung
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+  }
+  const alt = btn.textContent;
+  btn.textContent = t('claude.kopiert');
+  setTimeout(() => { btn.textContent = alt; }, 1500);
+}
+
+function renderClaudeModal() {
+  $('#claude-body').innerHTML = `
+    <p>${t('claude.intro')}</p>
+    <ol class="claude-schritte">
+      <li>${t('claude.schritt1')}</li>
+      <li>${t('claude.schritt2')}
+        <div class="claude-copyzeile"><code>${esc(MCP_SERVER_URL)}</code>
+        <button type="button" class="btn btn-sm" id="claude-copy-url">${t('claude.kopieren')}</button></div></li>
+      <li>${t('claude.schritt3')}</li>
+    </ol>
+    <h3>${t('claude.promptTitel')}</h3>
+    <textarea id="claude-prompt" class="claude-prompt" readonly rows="9">${esc(t('claude.prompt'))}</textarea>
+    <div class="claude-aktionen">
+      <button type="button" class="btn btn-primary" id="claude-copy-prompt">${t('claude.promptKopieren')}</button>
+      <a class="btn" id="claude-open" target="_blank" rel="noopener"
+         href="https://claude.ai/new?q=${encodeURIComponent(t('claude.prompt'))}">${t('claude.oeffnen')}</a>
+    </div>
+    <p class="stat-note">${t('claude.hinweis')}</p>`;
+  $('#claude-copy-url').addEventListener('click', (e) => kopiereText(MCP_SERVER_URL, e.target));
+  $('#claude-copy-prompt').addEventListener('click', (e) => kopiereText(t('claude.prompt'), e.target));
+}
+
+function initClaudeHilfe() {
+  const btn = $('#btn-claude');
+  if (!btn) return;
+  btn.classList.toggle('hidden', !claudeAktiv());
+  btn.addEventListener('click', () => {
+    renderClaudeModal();
+    $('#modal-claude').classList.remove('hidden');
+  });
+}
+
 /* ===================== Navigation & Initialisierung ===================== */
 
 function renderAlles(filterNeu = true) {
@@ -1609,7 +1732,7 @@ function initEvents() {
     renderTabelle();
   });
   $('#filter-reset').addEventListener('click', () => {
-    Object.assign(zustand, { suche: '', standort: '', abteilung: '', status: '', wartung: '', gruppe: '' });
+    Object.assign(zustand, { suche: '', standort: '', abteilung: '', status: '', wartung: '', gruppe: '', qrGeraet: null });
     zustand.eingeklappt.clear();
     $('#filter-search').value = '';
     ['#filter-standort', '#filter-abteilung', '#filter-status', '#filter-wartung', '#group-by'].forEach((s) => { $(s).value = ''; });
@@ -1670,6 +1793,8 @@ function initEvents() {
   // Modals
   $('#btn-new-device').addEventListener('click', () => oeffneFormular(null));
   $('#device-form').addEventListener('submit', speichereFormular);
+  $('#status-form').addEventListener('submit', speichereStatuswechsel);
+  initClaudeHilfe();
   $('#btn-fields').addEventListener('click', () => {
     renderFelderListe();
     $('#modal-fields').classList.remove('hidden');

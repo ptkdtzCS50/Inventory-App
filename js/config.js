@@ -36,6 +36,13 @@ const SUPABASE_URL = 'https://yfkywdtelkjxydcrlyjj.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_jx5qR-EqvWtH9_EpZsIxZw_T7WO7dVD'; // öffentlicher Client-Key
 
 /* ---------------------------------------------------------------------
+ * Claude-KI (MCP-Server, siehe mcp/README.md)
+ * URL des deployten MCP-Servers. Leer lassen ('') blendet den
+ * ✨-Claude-Knopf im Kopfbereich der App aus.
+ * ------------------------------------------------------------------- */
+const MCP_SERVER_URL = 'https://geraetefuhrpark-mcp.patrick-dietz.workers.dev';
+
+/* ---------------------------------------------------------------------
  * Master-Passwort (Zugangsschutz vor dem Login)
  *
  * Hier steht nur der SHA-256-Hash, nie das Passwort selbst.
