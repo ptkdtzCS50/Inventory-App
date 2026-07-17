@@ -199,6 +199,7 @@ tbody tr:last-child td { border-bottom: none; }
   box-shadow: 0 20px 60px rgba(0,0,0,.3);
 }
 .modal-lg { max-width: 860px; }
+.modal-xl { max-width: min(1500px, 96vw); }
 .modal-head {
   display: flex; align-items: center; justify-content: space-between;
   padding: 16px 20px; border-bottom: 1px solid var(--border);
@@ -563,6 +564,7 @@ tbody tr:last-child td { border-bottom: none; }
 .rep-check input { accent-color: var(--blue); width: 15px; height: 15px; }
 .rep-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
 .rep-filters select { padding: 7px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--card); color: var(--text); font-size: 13px; min-width: 180px; }
-.rep-preview { max-height: 300px; overflow: auto; margin-top: 4px; }
+.rep-preview { max-height: 45vh; overflow: auto; margin-top: 4px; }
+.rep-preview td { word-break: break-word; vertical-align: top; }
 .rep-preview table { font-size: 12px; }
 .rep-preview thead th { position: sticky; top: 0; background: var(--card); z-index: 1; }

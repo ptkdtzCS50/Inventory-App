@@ -151,10 +151,10 @@
 
     const th = fields.map((f, i) => {
       const arrow = state.sortIdx === i ? (state.sortDir === 1 ? ' ▲' : ' ▼') : '';
-      return '<th data-sort="' + i + '" style="cursor:pointer;white-space:nowrap">' + esc(f.label) + arrow + '</th>';
+      return '<th data-sort="' + i + '" style="cursor:pointer">' + esc(f.label) + arrow + '</th>';
     }).join('');
     const body = rows.slice(0, PREVIEW_LIMIT).map((r) =>
-      '<tr>' + r.map((c) => '<td style="white-space:nowrap">' + esc(c) + '</td>').join('') + '</tr>'
+      '<tr>' + r.map((c) => '<td>' + esc(c) + '</td>').join('') + '</tr>'
     ).join('');
     preview.innerHTML = '<table class="stat-table"><thead><tr>' + th + '</tr></thead><tbody>' + body + '</tbody></table>';
 
