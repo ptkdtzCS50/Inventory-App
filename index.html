@@ -119,6 +119,7 @@
         </select>
         <button id="filter-reset" class="btn btn-ghost" data-i18n="filter.reset">Zurücksetzen</button>
       </div>
+      <button id="btn-report" class="btn">📋 Liste / Report</button>
       <button id="btn-qr" class="btn" data-i18n="btn.qr">🏷 QR-Etiketten</button>
       <button id="btn-fields" class="btn admin-only" data-i18n="btn.felder">⚙ Eigene Felder</button>
       <button id="btn-new-device" class="btn btn-primary admin-only" data-i18n="btn.neuesGeraet">+ Neues Gerät</button>
@@ -582,6 +583,19 @@
   </div>
 </div>
 
+<!-- ===== Modal: Liste erstellen / Export (Geräte-Report) ===== -->
+<div id="modal-report" class="modal-backdrop hidden">
+  <div class="modal modal-lg">
+    <div class="modal-head">
+      <h2>Liste erstellen / Export</h2>
+      <button class="modal-close" data-close="modal-report">✕</button>
+    </div>
+    <div class="modal-body" id="report-body">
+      <!-- wird von js/report.js gefüllt -->
+    </div>
+  </div>
+</div>
+
 <!-- ===== Modal: Ideen-Briefkasten ===== -->
 <div id="modal-idee" class="modal-backdrop hidden">
   <div class="modal">
@@ -626,6 +640,9 @@
 </div>
 
 <script src="js/vendor/qrcode.js"></script>
+<script src="js/vendor/xlsx.full.min.js"></script>
+<script src="js/vendor/jspdf.umd.min.js"></script>
+<script src="js/vendor/jspdf.plugin.autotable.min.js"></script>
 <script src="js/i18n.js"></script>
 <script src="js/config.js"></script>
 <script src="js/krypto.js"></script>
@@ -633,6 +650,7 @@
 <script src="js/data.js"></script>
 <script src="js/monitoring.js"></script>
 <script src="js/stats.js"></script>
+<script src="js/report.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>
