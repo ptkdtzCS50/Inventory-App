@@ -568,3 +568,11 @@ tbody tr:last-child td { border-bottom: none; }
 .rep-preview th, .rep-preview td { white-space: nowrap; }
 .rep-preview table { font-size: 12px; }
 .rep-preview thead th { position: sticky; top: 0; background: var(--card); z-index: 1; }
+
+/* ---------- Sichtbare, schlanke Scrollbalken (je Scroll-Bereich) ---------- */
+* { scrollbar-width: thin; scrollbar-color: rgba(17, 24, 39, 0.28) transparent; }
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: rgba(17, 24, 39, 0.24); border-radius: 8px; }
+*::-webkit-scrollbar-thumb:hover { background: rgba(17, 24, 39, 0.4); }
+*::-webkit-scrollbar-corner { background: transparent; }
